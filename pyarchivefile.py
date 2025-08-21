@@ -323,7 +323,7 @@ if not __use_ini_file__ and not __include_defaults__:
     __include_defaults__ = True
 if(__include_defaults__):
     if("ArchiveFile" not in __file_format_multi_dict__):
-        __file_format_multi_dict__.update( { 'ArchiveFile': {'format_name': "ArchiveFile", 'format_magic': "ArchiveFile", 'format_len': 11, 'format_hex': "4172636869766546696c65", 'format_delimiter': "\x00", 'format_ver': "001", 'new_style': True, 'use_advanced_list': True, 'use_alt_inode': False, 'format_extension': ".arc" } 
+        __file_format_multi_dict__.update( { 'ArchiveFile': {'format_name': "ArchiveFile", 'format_magic': "ArchiveFile", 'format_len': 11, 'format_hex': "4172636869766546696c65", 'format_delimiter': "\x00", 'format_ver': "001", 'new_style': True, 'use_advanced_list': True, 'use_alt_inode': False, 'format_extension': ".arc" } } )
     if("NeoFile" not in __file_format_multi_dict__):
         __file_format_multi_dict__.update( { 'NeoFile': {'format_name': "NeoFile", 'format_magic': "NeoFile", 'format_len': 7, 'format_hex': "4e656f46696c65", 'format_delimiter': "\x00", 'format_ver': "001", 'new_style': True, 'use_advanced_list': True, 'use_alt_inode': False, 'format_extension': ".neo" } } )
 if(__file_format_default__ not in __file_format_multi_dict__):
