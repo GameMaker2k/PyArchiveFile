@@ -5,9 +5,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import sys, os, io, argparse
 
 try:
-    import pycatfile as P  # core must provide *_neo functions
+    import pyarchivefile as P  # core must provide *_neo functions
 except Exception as e:
-    sys.stderr.write("Failed to import core module 'pycatfile': %s\n" % (e,))
+    sys.stderr.write("Failed to import core module 'pyarchivefile': %s\n" % (e,))
     sys.exit(2)
 
 
@@ -28,7 +28,7 @@ def main():
     argv = _expand_combined_short_opts(sys.argv)
 
     p = argparse.ArgumentParser(
-        description="PyNeoFile CLI (uses pycatfile core)")
+        description="PyNeoFile CLI (uses pyarchivefile core)")
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("-l", "--list", action="store_true", help="List archive")
     g.add_argument("-e", "--extract", action="store_true", help="Extract archive")
