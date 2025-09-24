@@ -1947,15 +1947,15 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
         HeaderOut = ReadFileHeaderDataWoSize(fp, delimiter)
     if(len(HeaderOut) == 0):
         return False
-    if(re.findall("^[.|/]", HeaderOut[3])):
-        fname = HeaderOut[3]
+    if(re.findall("^[.|/]", HeaderOut[5])):
+        fname = HeaderOut[5]
     else:
-        fname = "./"+HeaderOut[3]
+        fname = "./"+HeaderOut[5]
     fcs = HeaderOut[-2].lower()
     fccs = HeaderOut[-1].lower()
-    fsize = int(HeaderOut[5], 16)
-    fcompression = HeaderOut[12]
-    fcsize = int(HeaderOut[13], 16)
+    fsize = int(HeaderOut[7], 16)
+    fcompression = HeaderOut[14]
+    fcsize = int(HeaderOut[15], 16)
     fseeknextfile = HeaderOut[26]
     fjsontype = HeaderOut[27]
     fjsonlen = int(HeaderOut[28], 16)
@@ -2008,6 +2008,7 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
     fcontents.seek(0, 0)
     newfccs = GetFileChecksum(
         fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+    fcontents.seek(0, 0)
     if(fccs != newfccs and not skipchecksum and not listonly):
         VerbosePrintOut("File Content Checksum Error with file " +
                         fname + " at offset " + str(fcontentstart))
@@ -2020,7 +2021,7 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
         if(uncompress):
             cfcontents = UncompressFileAlt(fcontents, formatspecs)
             cfcontents.seek(0, 0)
-            cfcontents.seek(0, 0)
+            fcontents = BytesIO()
             shutil.copyfileobj(cfcontents, fcontents)
             cfcontents.close()
             fcontents.seek(0, 0)
@@ -2112,6 +2113,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
                 fextrafieldslist = json.loads(fextrafieldslist[0])
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 pass
+    fjstart = fp.tell()
     if(fjsontype=="json"):
         fjsoncontent = {}
         fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
@@ -2139,11 +2141,11 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
         fjsoncontent = ReadFileHeaderData(flisttmp, fjsonlen, delimiter)
         flisttmp.close()
         fjsonrawcontent = fjsoncontent
-        if(outfjsonlen==1):
+        if(fjsonlen==1):
             try:
                 fjsonrawcontent = base64.b64decode(fjsoncontent[0]).decode("UTF-8")
                 fjsoncontent = json.loads(base64.b64decode(fjsoncontent[0]).decode("UTF-8"))
-                outfjsonlen = len(fjsoncontent)
+                fjsonlen = len(fjsoncontent)
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 try:
                     fjsonrawcontent = fjsoncontent[0]
@@ -2151,6 +2153,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
                 except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                     pass
     fp.seek(len(delimiter), 1)
+    fjend = fp.tell() - 1
     jsonfcs = GetFileChecksum(fprejsoncontent, fjsonchecksumtype, True, formatspecs)
     if(jsonfcs != fjsonchecksum and not skipchecksum):
         VerbosePrintOut("File JSON Data Checksum Error with file " +
@@ -2185,6 +2188,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
     fcontents.seek(0, 0)
     newfccs = GetFileChecksum(
         fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+    fcontents.seek(0, 0)
     if(fccs != newfccs and not skipchecksum and not listonly):
         VerbosePrintOut("File Content Checksum Error with file " +
                         fname + " at offset " + str(fcontentstart))
@@ -2226,7 +2230,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
     if(not contentasfile):
         fcontents = fcontents.read()
     outlist = {'fheadersize': fheadsize, 'fhstart': fheaderstart, 'fhend': fhend, 'ftype': ftype, 'fencoding': fencoding, 'fcencoding': fcencoding, 'fname': fname, 'fbasedir': fbasedir, 'flinkname': flinkname, 'fsize': fsize, 'fatime': fatime, 'fmtime': fmtime, 'fctime': fctime, 'fbtime': fbtime, 'fmode': fmode, 'fchmode': fchmode, 'ftypemod': ftypemod, 'fwinattributes': fwinattributes, 'fcompression': fcompression, 'fcsize': fcsize, 'fuid': fuid, 'funame': funame, 'fgid': fgid, 'fgname': fgname, 'finode': finode, 'flinkcount': flinkcount,
-               'fdev': fdev, 'fminor': fdev_minor, 'fmajor': fdev_major, 'fseeknextfile': fseeknextfile, 'fheaderchecksumtype': HeaderOut[-4], 'fjsonchecksumtype': outfjsonchecksumtype, 'fcontentchecksumtype': HeaderOut[-3], 'fnumfields': fnumfields + 2, 'frawheader': HeaderOut, 'fextrafields': fextrafields, 'fextrafieldsize': fextrasize, 'fextradata': fextrafieldslist, 'fjsontype': fjsontype, 'fjsonlen': fjsonlen, 'fjsonsize': fjsonsize, 'fjsonrawdata': fjsonrawcontent, 'fjsondata': fjsoncontent, 'fjstart': outfjstart, 'fjend': outfjend, 'fheaderchecksum': fcs, 'fjsonchecksum': outfjsonchecksum, 'fcontentchecksum': fccs, 'fhascontents': pyhascontents, 'fcontentstart': fcontentstart, 'fcontentend': fcontentend, 'fcontentasfile': contentasfile, 'fcontents': fcontents}
+               'fdev': fdev, 'fminor': fdev_minor, 'fmajor': fdev_major, 'fseeknextfile': fseeknextfile, 'fheaderchecksumtype': HeaderOut[-4], 'fjsonchecksumtype': fjsonchecksumtype, 'fcontentchecksumtype': HeaderOut[-3], 'fnumfields': fnumfields + 2, 'frawheader': HeaderOut, 'fextrafields': fextrafields, 'fextrafieldsize': fextrasize, 'fextradata': fextrafieldslist, 'fjsontype': fjsontype, 'fjsonlen': fjsonlen, 'fjsonsize': fjsonsize, 'fjsonrawdata': fjsonrawcontent, 'fjsondata': fjsoncontent, 'fjstart': fjstart, 'fjend': fjend, 'fheaderchecksum': fcs, 'fjsonchecksum': fjsonchecksum, 'fcontentchecksum': fccs, 'fhascontents': pyhascontents, 'fcontentstart': fcontentstart, 'fcontentend': fcontentend, 'fcontentasfile': contentasfile, 'fcontents': fcontents}
     return outlist
 
 
@@ -2323,11 +2327,11 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
         fjsoncontent = ReadFileHeaderData(flisttmp, fjsonlen, delimiter)
         flisttmp.close()
         fjsonrawcontent = fjsoncontent
-        if(fextrafields==1):
+        if(fjsonlen==1):
             try:
                 fjsonrawcontent = base64.b64decode(fjsoncontent[0]).decode("UTF-8")
                 fjsoncontent = json.loads(base64.b64decode(fjsoncontent[0]).decode("UTF-8"))
-                fextrafields = len(fjsoncontent)
+                fjsonlen = len(fjsoncontent)
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 try:
                     fjsonrawcontent = fjsoncontent[0]
@@ -2537,11 +2541,11 @@ def ReadFileDataWithContentToArray(fp, seekstart=0, seekend=0, listonly=False, c
     formversions = re.search('(.*?)(\\d+)', formstring).groups()
     fcompresstype = ""
     outlist = {'fnumfiles': fnumfiles, 'fformat': formversions[0], 'fcompression': fcompresstype, 'fencoding': fhencoding, 'fversion': formversions[1], 'fostype': fostype, 'fheadersize': fheadsize, 'fsize': CatSizeEnd, 'fnumfields': fnumfields + 2, 'fformatspecs': formatspecs, 'fchecksumtype': fprechecksumtype, 'fheaderchecksum': fprechecksum, 'frawheader': [formstring] + inheader, 'fextrafields': fnumextrafields, 'fextrafieldsize': fnumextrafieldsize, 'fextradata': fextrafieldslist, 'ffilelist': []}
-    if(seekstart < 0 and seekstart > fnumfiles):
+    if (seekstart < 0) or (seekstart > fnumfiles):
         seekstart = 0
-    if(seekend == 0 or seekend > fnumfiles and seekend < seekstart):
+    if (seekend == 0) or (seekend > fnumfiles) or (seekend < seekstart):
         seekend = fnumfiles
-    elif(seekend < 0 and abs(seekend) <= fnumfiles and abs(seekend) >= seekstart):
+    elif (seekend < 0) and (abs(seekend) <= fnumfiles) and (abs(seekend) >= seekstart):
         seekend = fnumfiles - abs(seekend)
     if(seekstart > 0):
         il = 0
@@ -2552,14 +2556,18 @@ def ReadFileDataWithContentToArray(fp, seekstart=0, seekend=0, listonly=False, c
             if(len(preheaderdata) == 0):
                 break
             prefsize = int(preheaderdata[5], 16)
+            if(re.findall("^[.|/]", preheaderdata[5])):
+                prefname = preheaderdata[5]
+            else:
+                prefname = "./"+preheaderdata[5]
             prefseeknextfile = preheaderdata[26]
             prefjsonlen = int(preheaderdata[28], 16)
             prefjsonsize = int(preheaderdata[29], 16)
             prefjsonchecksumtype = preheaderdata[30]
             prefjsonchecksum = preheaderdata[31]
-            prefprejsoncontent = fp.read(prefjsonsize).decode("UTF-8")
+            prejsoncontent = fp.read(prefjsonsize).decode("UTF-8")
             fp.seek(len(delimiter), 1)
-            prejsonfcs = GetFileChecksum(fprejsoncontent, prefjsonchecksumtype, True, formatspecs)
+            prejsonfcs = GetFileChecksum(prejsoncontent, prefjsonchecksumtype, True, formatspecs)
             if(prejsonfcs != prefjsonchecksum and not skipchecksum):
                 VerbosePrintOut("File JSON Data Checksum Error with file " +
                                 prefname + " at offset " + str(prefhstart))
@@ -2692,11 +2700,11 @@ def ReadFileDataWithContentToList(fp, seekstart=0, seekend=0, listonly=False, co
         return False
     formversions = re.search('(.*?)(\\d+)', formstring).groups()
     outlist = []
-    if(seekstart < 0 and seekstart > fnumfiles):
+    if (seekstart < 0) or (seekstart > fnumfiles):
         seekstart = 0
-    if(seekend == 0 or seekend > fnumfiles and seekend < seekstart):
+    if (seekend == 0) or (seekend > fnumfiles) or (seekend < seekstart):
         seekend = fnumfiles
-    elif(seekend < 0 and abs(seekend) <= fnumfiles and abs(seekend) >= seekstart):
+    elif (seekend < 0) and (abs(seekend) <= fnumfiles) and (abs(seekend) >= seekstart):
         seekend = fnumfiles - abs(seekend)
     if(seekstart > 0):
         il = 0
@@ -2711,16 +2719,20 @@ def ReadFileDataWithContentToList(fp, seekstart=0, seekend=0, listonly=False, co
             if(len(preheaderdata) == 0):
                 break
             prefsize = int(preheaderdata[5], 16)
-            prefcompression = preheaderdata[12]
-            prefcsize = int(preheaderdata[13], 16)
-            prefseeknextfile = HeaderOut[26]
+            if(re.findall("^[.|/]", preheaderdata[5])):
+                prefname = preheaderdata[5]
+            else:
+                prefname = "./"+preheaderdata[5]
+            prefcompression = preheaderdata[14]
+            prefcsize = int(preheaderdata[15], 16)
+            prefseeknextfile = preheaderdata[26]
             prefjsonlen = int(preheaderdata[28], 16)
             prefjsonsize = int(preheaderdata[29], 16)
             prefjsonchecksumtype = preheaderdata[30]
             prefjsonchecksum = preheaderdata[31]
             prefprejsoncontent = fp.read(prefjsonsize).decode("UTF-8")
             fp.seek(len(delimiter), 1)
-            prejsonfcs = GetFileChecksum(fprejsoncontent, prefjsonchecksumtype, True, formatspecs)
+            prejsonfcs = GetFileChecksum(prefprejsoncontent, prefjsonchecksumtype, True, formatspecs)
             if(prejsonfcs != prefjsonchecksum and not skipchecksum):
                 VerbosePrintOut("File JSON Data Checksum Error with file " +
                                 prefname + " at offset " + str(prefhstart))
@@ -2807,13 +2819,13 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
         fp = UncompressFileAlt(fp, formatspecs)
         checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return TarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return ZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return RarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return SevenZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
@@ -2923,13 +2935,13 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return TarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return ZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return RarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return SevenZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
@@ -2968,7 +2980,7 @@ def ReadInMultipleFileWithContentToArray(infile, fmttype="auto", seekstart=0, se
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile = outretval.update({curfname: ReadInFileWithContentToArray(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)})
+        outretval[curfname] = ReadInFileWithContentToArray(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
 def ReadInMultipleFilesWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -2995,13 +3007,13 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
         fp = UncompressFileAlt(fp, formatspecs)
         checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return TarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return ZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return RarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
+            return SevenZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
@@ -3111,13 +3123,13 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return TarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return ZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return RarFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, returnfp)
+            return SevenZipFileToArray(infile, seekstart, seekend, listonly, skipchecksum, formatspecs, seektoend, True)
         elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
@@ -3156,7 +3168,7 @@ def ReadInMultipleFileWithContentToList(infile, fmttype="auto", seekstart=0, see
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile = outretval.update({curfname: ReadInFileWithContentToList(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)})
+        curretfile[curfname] = ReadInFileWithContentToList(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
 def ReadInMultipleFilesWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -3201,7 +3213,7 @@ def AppendFileHeader(fp, numfiles, fencoding, extradata=[], checksumtype="crc32"
     tmpoutlist = []
     tmpoutlist.append(extrasizelen)
     tmpoutlist.append(extrafields)
-    fnumfiles = format(int(numfiles), 'x').lower()
+    fnumfiles = format(numfiles, 'x').lower()
     tmpoutlen = 3 + len(tmpoutlist) + len(extradata) + 2
     tmpoutlenhex = format(tmpoutlen, 'x').lower()
     fnumfilesa = AppendNullBytes(
@@ -3339,7 +3351,7 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
 
 
 def MakeEmptyArchiveFile(outfile, compression="auto", compresswholefile=True, compressionlevel=None, checksumtype="crc32", formatspecs=__file_format_dict__, returnfp=False):
-    return MakeEmptyFile(outfile, compression, compresswholefile, compressionlevel, checksumtype, formatspecs, returnfp)
+    return MakeEmptyFile(outfile, "auto", compression, compresswholefile, compressionlevel, checksumtype, formatspecs, returnfp)
 
 
 def AppendFileHeaderWithContent(fp, filevalues=[], extradata=[], jsondata={}, filecontent="", checksumtype=["crc32", "crc32", "crc32"], formatspecs=__file_format_dict__):
@@ -3438,6 +3450,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
     if(verbose):
         logging.basicConfig(format="%(message)s",
                             stream=sys.stdout, level=logging.DEBUG)
+    infilelist = []
     if(infiles == "-"):
         for line in sys.stdin:
             infilelist.append(line.strip())
@@ -3478,7 +3491,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
     inodetoforminode = {}
     numfiles = int(len(GetDirList))
     fnumfiles = format(numfiles, 'x').lower()
-    AppendFileHeader(fp, fnumfiles, "UTF-8", [], checksumtype[0], formatspecs)
+    AppendFileHeader(fp, numfiles, "UTF-8", [], checksumtype[0], formatspecs)
     FullSizeFilesAlt = 0
     for curfname in GetDirList:
         fencoding = "UTF-8"
@@ -3576,7 +3589,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
         elif ftype in data_types:
             fsize = format(int(fstatinfo.st_size), 'x').lower()
         else:
-            fsize = format(int(fstatinfo.st_size)).lower()
+            fsize = format(int(fstatinfo.st_size), 'x').lower()
         fatime = format(int(fstatinfo.st_atime), 'x').lower()
         fmtime = format(int(fstatinfo.st_mtime), 'x').lower()
         fctime = format(int(fstatinfo.st_ctime), 'x').lower()
@@ -3750,7 +3763,7 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, filevalues=[], extr
     inodetoforminode = {}
     numfiles = int(len(GetDirList))
     fnumfiles = format(numfiles, 'x').lower()
-    AppendFileHeader(fp, fnumfiles, "UTF-8", [], checksumtype[0], formatspecs)
+    AppendFileHeader(fp, numfiles, "UTF-8", [], checksumtype[0], formatspecs)
     for curfname in GetDirList:
         ftype = format(curfname[0], 'x').lower()
         fencoding = curfname[1]
@@ -7583,11 +7596,11 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
     if(fcompresstype==formatspecs['format_magic']):
         fcompresstype = ""
     outlist = {'fnumfiles': fnumfiles, 'fformat': formversions[0], 'fcompression': fcompresstype, 'fencoding': fhencoding, 'fversion': formversions[1], 'fostype': fostype, 'fheadersize': fheadsize, 'fsize': CatSizeEnd, 'fnumfields': fnumfields + 2, 'fformatspecs': formatspecs, 'fchecksumtype': fprechecksumtype, 'fheaderchecksum': fprechecksum, 'frawheader': [formstring] + inheader, 'fextrafields': fnumextrafields, 'fextrafieldsize': fnumextrafieldsize, 'fextradata': fextrafieldslist, 'ffilelist': []}
-    if(seekstart < 0 and seekstart > fnumfiles):
+    if (seekstart < 0) or (seekstart > fnumfiles):
         seekstart = 0
-    if(seekend == 0 or seekend > fnumfiles and seekend < seekstart):
+    if (seekend == 0) or (seekend > fnumfiles) or (seekend < seekstart):
         seekend = fnumfiles
-    elif(seekend < 0 and abs(seekend) <= fnumfiles and abs(seekend) >= seekstart):
+    elif (seekend < 0) and (abs(seekend) <= fnumfiles) and (abs(seekend) >= seekstart):
         seekend = fnumfiles - abs(seekend)
     if(seekstart > 0):
         il = 0
@@ -7878,7 +7891,7 @@ def MultipleArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, l
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile = outretval.update({curfname: ArchiveFileToArray(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)})
+        curretfile[curfname] = ArchiveFileToArray(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
     return outretval
 
 def MultipleArchiveFilesToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
