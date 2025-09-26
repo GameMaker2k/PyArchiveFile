@@ -32,10 +32,12 @@ import socket
 import hashlib
 import inspect
 import datetime
+import tempfile
 import logging
 import zipfile
 import binascii
 import platform
+from io import StringIO, BytesIO
 try:
     from backports import tempfile
 except ImportError:
@@ -243,17 +245,6 @@ except ImportError:
     from urllib2 import Request, build_opener, HTTPBasicAuthHandler
     from urlparse import urlparse
 
-# StringIO and BytesIO
-try:
-    from io import StringIO, BytesIO
-except ImportError:
-    try:
-        from cStringIO import StringIO
-        from cStringIO import StringIO as BytesIO
-    except ImportError:
-        from StringIO import StringIO
-        from StringIO import StringIO as BytesIO
-
 def get_importing_script_path():
     # Inspect the stack and get the frame of the caller
     stack = inspect.stack()
@@ -275,22 +266,6 @@ def get_default_threads():
 
 
 __use_pysftp__ = False
-__use_alt_format__ = False
-__use_env_file__ = True
-__use_ini_file__ = True
-__use_ini_name__ = "archivefile.ini"
-if('PYARCHIVEFILE_CONFIG_FILE' in os.environ and os.path.exists(os.environ['PYARCHIVEFILE_CONFIG_FILE']) and __use_env_file__):
-    scriptconf = os.environ['PYARCHIVEFILE_CONFIG_FILE']
-else:
-    prescriptpath = get_importing_script_path()
-    if(prescriptpath is not None):
-        scriptconf = os.path.join(os.path.dirname(prescriptpath), __use_ini_name__)
-    else:
-        scriptconf = ""
-if os.path.exists(scriptconf):
-    __config_file__ = scriptconf
-else:
-    __config_file__ = os.path.join(os.path.dirname(os.path.realpath(__file__)), __use_ini_name__)
 if(not havepysftp):
     __use_pysftp__ = False
 __use_http_lib__ = "httpx"
@@ -328,7 +303,25 @@ def is_only_nonprintable(var):
 __file_format_multi_dict__ = {}
 __file_format_default__ = "ArchiveFile"
 __include_defaults__ = True
+__use_inmemfile__ = False
 __program_name__ = "Py"+__file_format_default__
+__use_env_file__ = True
+__use_ini_file__ = False
+__use_ini_name__ = "archivefile.ini"
+__use_json_file__ = False
+__use_json_name__ = "archivefile.json"
+if('PYARCHIVEFILE_CONFIG_FILE' in os.environ and os.path.exists(os.environ['PYARCHIVEFILE_CONFIG_FILE']) and __use_env_file__):
+    scriptconf = os.environ['PYARCHIVEFILE_CONFIG_FILE']
+else:
+    prescriptpath = get_importing_script_path()
+    if(prescriptpath is not None):
+        scriptconf = os.path.join(os.path.dirname(prescriptpath), __use_ini_name__)
+    else:
+        scriptconf = ""
+if os.path.exists(scriptconf):
+    __config_file__ = scriptconf
+else:
+    __config_file__ = os.path.join(os.path.dirname(os.path.realpath(__file__)), __use_ini_name__)
 if __use_ini_file__ and os.path.exists(__config_file__):
     config = configparser.ConfigParser()
     config.read(__config_file__)
@@ -340,6 +333,7 @@ if __use_ini_file__ and os.path.exists(__config_file__):
     __file_format_default__ = decode_unicode_escape(config.get('config', 'default'))
     __program_name__ = decode_unicode_escape(config.get('config', 'proname'))
     __include_defaults__ = config.getboolean('config', 'includedef')
+    __use_inmemfile__ = config.getboolean('config', 'inmemfile')
     # Loop through all sections
     for section in config.sections():
         required_keys = [
@@ -572,6 +566,105 @@ def VerbosePrintOut(dbgtxt, outtype="log", dbgenable=True, dgblevel=20):
 def VerbosePrintOutReturn(dbgtxt, outtype="log", dbgenable=True, dgblevel=20):
     VerbosePrintOut(dbgtxt, outtype, dbgenable, dgblevel)
     return dbgtxt
+
+
+# --- Helpers ---
+def _normalize_initial_data(data, isbytes, encoding):
+    """Return data in the correct type for write(): bytes (if isbytes) or text (if not)."""
+    if data is None:
+        return None
+
+    if isbytes:
+        # Want bytes
+        if isinstance(data, bytes):
+            return data
+        # Py2: str is already bytes, unicode needs encode
+        if sys.version_info[0] == 2:
+            try:
+                unicode  # noqa: F821
+            except NameError:
+                pass
+            else:
+                if isinstance(data, unicode):  # noqa: F821
+                    return data.encode(encoding)
+        # Py3 str -> encode
+        return str(data).encode(encoding)
+    else:
+        # Want text (unicode/str)
+        if sys.version_info[0] == 2:
+            try:
+                unicode  # noqa: F821
+                if isinstance(data, unicode):  # noqa: F821
+                    return data
+                # bytes/str -> decode
+                return data.decode(encoding) if isinstance(data, str) else unicode(data)  # noqa: F821
+            except NameError:
+                # Very defensive; shouldn't happen
+                return data
+        else:
+            # Py3: want str
+            if isinstance(data, bytes):
+                return data.decode(encoding)
+            return str(data)
+
+
+def MkTempFile(data=None, inmem=__use_inmemfile__, isbytes=True, prefix=__project__,
+               delete=True, encoding="utf-8"):
+    """
+    Return a file-like handle.
+      - If inmem=True: returns StringIO (text) or BytesIO (bytes).
+      - If inmem=False: returns a NamedTemporaryFile opened in text or binary mode.
+    Args:
+      data:     optional initial content; if provided, it's written and the handle is seek(0)
+      inmem:    bool — return in-memory handle if True
+      isbytes:  bool — choose bytes (True) or text (False)
+      prefix:   str  — tempfile prefix
+      delete:   bool — whether the tempfile is deleted on close (NamedTemporaryFile)
+      encoding: str  — used for text mode (and for conversions when needed)
+    """
+    init = _normalize_initial_data(data, isbytes, encoding)
+
+    if inmem:
+        buf = BytesIO() if isbytes else StringIO()
+        if init is not None:
+            buf.write(init)
+            buf.seek(0)
+        return buf
+
+    mode = "wb+" if isbytes else "w+"
+    kwargs = {"prefix": prefix or "", "delete": delete, "mode": mode}
+
+    # Only Python 3's text-mode files accept encoding/newline explicitly
+    if not isbytes and sys.version_info[0] >= 3:
+        kwargs["encoding"] = encoding
+        kwargs["newline"] = ""
+
+    f = tempfile.NamedTemporaryFile(**kwargs)
+
+    if init is not None:
+        f.write(init)
+        f.seek(0)
+    return f
+
+
+def MkTempFileSmart(data=None, isbytes=True, prefix=__project__, max_mem=1024*1024, encoding="utf-8"):
+    """
+    Spooled temp file: starts in memory and spills to disk past max_mem.
+    Behaves like BytesIO/StringIO for small data, with the same preload+seek(0) behavior.
+    """
+    mode = "wb+" if isbytes else "w+"
+    kwargs = {"mode": mode, "max_size": max_mem, "prefix": prefix or ""}
+    if not isbytes and sys.version_info[0] >= 3:
+        kwargs["encoding"] = encoding
+        kwargs["newline"] = ""
+
+    f = tempfile.SpooledTemporaryFile(**kwargs)
+
+    init = _normalize_initial_data(data, isbytes, encoding)
+    if init is not None:
+        f.write(init)
+        f.seek(0)
+    return f
 
 
 def RemoveWindowsPath(dpath):
@@ -1910,7 +2003,7 @@ def ReadFileHeaderDataBySize(fp, delimiter=__file_format_dict__['format_delimite
     headersize = int(preheaderdata[0], 16)
     if(headersize <= 0):
         return []
-    subfp = BytesIO()
+    subfp = MkTempFile()
     subfp.write(fp.read(headersize))
     fp.seek(len(delimiter), 1)
     subfp.seek(0, 0)
@@ -1994,7 +2087,7 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
         return False
     fhend = fp.tell() - 1
     fcontentstart = fp.tell()
-    fcontents = BytesIO()
+    fcontents = MkTempFile()
     if(fsize > 0 and not listonly):
         if(fcompression == "none" or fcompression == "" or fcompression == "auto"):
             fcontents.write(fp.read(fsize))
@@ -2021,7 +2114,7 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
         if(uncompress):
             cfcontents = UncompressFileAlt(fcontents, formatspecs)
             cfcontents.seek(0, 0)
-            fcontents = BytesIO()
+            fcontents = MkTempFile()
             shutil.copyfileobj(cfcontents, fcontents)
             cfcontents.close()
             fcontents.seek(0, 0)
@@ -2135,7 +2228,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
             fjsoncontent = {}
     elif(fjsontype=="list"):
         fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
-        flisttmp = BytesIO()
+        flisttmp = MkTempFile()
         flisttmp.write(fprejsoncontent.encode())
         flisttmp.seek(0)
         fjsoncontent = ReadFileHeaderData(flisttmp, fjsonlen, delimiter)
@@ -2171,7 +2264,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
         return False
     fhend = fp.tell() - 1
     fcontentstart = fp.tell()
-    fcontents = BytesIO()
+    fcontents = MkTempFile()
     pyhascontents = False
     if(fsize > 0 and not listonly):
         if(fcompression == "none" or fcompression == "" or fcompression == "auto"):
@@ -2202,7 +2295,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
             cfcontents = UncompressFileAlt(
                 fcontents, formatspecs)
             cfcontents.seek(0, 0)
-            fcontents = BytesIO()
+            fcontents = MkTempFile()
             shutil.copyfileobj(cfcontents, fcontents)
             cfcontents.close()
             fcontents.seek(0, 0)
@@ -2321,7 +2414,7 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
             fjsoncontent = {}
     elif(fjsontype=="list"):
         fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
-        flisttmp = BytesIO()
+        flisttmp = MkTempFile()
         flisttmp.write(fprejsoncontent.encode())
         flisttmp.seek(0)
         fjsoncontent = ReadFileHeaderData(flisttmp, fjsonlen, delimiter)
@@ -2356,7 +2449,7 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
         return False
     fhend = fp.tell() - 1
     fcontentstart = fp.tell()
-    fcontents = BytesIO()
+    fcontents = MkTempFile()
     pyhascontents = False
     if(fsize > 0 and not listonly):
         if(fcompression == "none" or fcompression == "" or fcompression == "auto"):
@@ -2386,7 +2479,7 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
             cfcontents = UncompressFileAlt(
                 fcontents, formatspecs)
             cfcontents.seek(0, 0)
-            fcontents = BytesIO()
+            fcontents = MkTempFile()
             shutil.copyfileobj(cfcontents, fcontents)
             cfcontents.close()
             fcontents.seek(0, 0)
@@ -2586,7 +2679,7 @@ def ReadFileDataWithContentToArray(fp, seekstart=0, seekend=0, listonly=False, c
                 invalid_archive = True
             prefhend = fp.tell() - 1
             prefcontentstart = fp.tell()
-            prefcontents = BytesIO()
+            prefcontents = MkTempFile()
             pyhascontents = False
             if(prefsize > 0):
                 prefcontents.write(fp.read(prefsize))
@@ -2854,7 +2947,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
                 return False
         fp.seek(0, 0)
     elif(infile == "-"):
-        fp = BytesIO()
+        fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
@@ -2875,7 +2968,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
             return False
         fp.seek(0, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = BytesIO()
+        fp = MkTempFile()
         fp.write(infile)
         fp.seek(0, 0)
         fp = UncompressFileAlt(fp, formatspecs)
@@ -3042,7 +3135,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
                 return False
         fp.seek(0, 0)
     elif(infile == "-"):
-        fp = BytesIO()
+        fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
@@ -3063,7 +3156,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
             return False
         fp.seek(0, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = BytesIO()
+        fp = MkTempFile()
         fp.write(infile)
         fp.seek(0, 0)
         fp = UncompressFileAlt(fp, formatspecs)
@@ -3298,11 +3391,11 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
                 pass
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -3634,7 +3727,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
             fwinattributes = format(int(0), 'x').lower()
         fcompression = ""
         fcsize = format(int(0), 'x').lower()
-        fcontents = BytesIO()
+        fcontents = MkTempFile()
         chunk_size = 1024
         fcencoding = "UTF-8"
         curcompression = "none"
@@ -3653,7 +3746,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
                         ilmin = 0
                         ilcsize = []
                         while(ilmin < ilsize):
-                            cfcontents = BytesIO()
+                            cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents)
                             fcontents.seek(0, 0)
@@ -3670,7 +3763,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
                         ilcmin = ilcsize.index(min(ilcsize))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     shutil.copyfileobj(fcontents, cfcontents)
                     cfcontents.seek(0, 0)
                     cfcontents = CompressOpenFileAlt(
@@ -3700,7 +3793,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
                         ilmin = 0
                         ilcsize = []
                         while(ilmin < ilsize):
-                            cfcontents = BytesIO()
+                            cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents)
                             fcontents.seek(0, 0)
@@ -3717,7 +3810,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
                         ilcmin = ilcsize.index(min(ilcsize))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     shutil.copyfileobj(fcontents, cfcontents)
                     cfcontents.seek(0, 0)
                     cfcontents = CompressOpenFileAlt(
@@ -3847,11 +3940,11 @@ def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmtt
                 pass
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -3927,11 +4020,11 @@ def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmtty
                 pass
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -4048,7 +4141,7 @@ def GzipCompressData(data, compresslevel=9):
         compressed_data = gzip.compress(data, compresslevel=compresslevel)
     except AttributeError:
         # Fallback to older method for Python 2.x and older 3.x versions
-        out = BytesIO()
+        out = MkTempFile()
         with gzip.GzipFile(fileobj=out, mode="wb", compresslevel=compresslevel) as f:
             f.write(data)
         compressed_data = out.getvalue()
@@ -4061,7 +4154,7 @@ def GzipDecompressData(compressed_data):
         decompressed_data = gzip.decompress(compressed_data)
     except AttributeError:
         # Fallback to older method for Python 2.x and older 3.x versions
-        inp = BytesIO(compressed_data)
+        inp = MkTempFile(compressed_data)
         with gzip.GzipFile(fileobj=inp, mode="rb") as f:
             decompressed_data = f.read()
     return decompressed_data
@@ -4194,9 +4287,9 @@ def GetFileEncoding(infile, closefp=True):
 
 def GetFileEncodingFromString(instring, closefp=True):
     try:
-        instringsfile = BytesIO(instring)
+        instringsfile = MkTempFile(instring)
     except TypeError:
-        instringsfile = BytesIO(instring.encode("UTF-8"))
+        instringsfile = MkTempFile(instring.encode("UTF-8"))
     return GetFileEncoding(instringsfile, closefp)
 
 
@@ -4459,17 +4552,17 @@ def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, clos
 
 def CheckCompressionTypeFromString(instring, formatspecs=__file_format_multi_dict__, closefp=True):
     try:
-        instringsfile = BytesIO(instring)
+        instringsfile = MkTempFile(instring)
     except TypeError:
-        instringsfile = BytesIO(instring.encode("UTF-8"))
+        instringsfile = MkTempFile(instring.encode("UTF-8"))
     return CheckCompressionType(instringsfile, formatspecs, closefp)
 
 
 def CheckCompressionTypeFromBytes(instring, formatspecs=__file_format_multi_dict__, closefp=True):
     try:
-        instringsfile = BytesIO(instring)
+        instringsfile = MkTempFile(instring)
     except TypeError:
-        instringsfile = BytesIO(instring.decode("UTF-8"))
+        instringsfile = MkTempFile(instring.decode("UTF-8"))
     return CheckCompressionType(instringsfile, formatspecs, closefp)
 
 
@@ -4636,7 +4729,7 @@ def UncompressBytes(infile, formatspecs=__file_format_multi_dict__):
 
 
 def UncompressBytesAlt(inbytes, formatspecs=__file_format_multi_dict__):
-    filefp = BytesIO()
+    filefp = MkTempFile()
     outstring = UncompressBytes(inbytes, formatspecs)
     filefp.write(outstring)
     filefp.seek(0, 0)
@@ -4652,7 +4745,7 @@ def UncompressBytesAltFP(fp, formatspecs=__file_format_multi_dict__):
     fp.seek(0, 0)
     if(prechck!="zstd"):
         return UncompressFileAlt(fp, formatspecs)
-    filefp = BytesIO()
+    filefp = MkTempFile()
     fp.seek(0, 0)
     outstring = UncompressBytes(fp.read(), formatspecs)
     filefp.write(outstring)
@@ -4669,7 +4762,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
     if(compression not in compressionuselist and compression is None):
         compression = "auto"
     if(compression == "gzip" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4677,7 +4770,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
         bytesfp.write(GzipCompressData(
             fp.read(), compresslevel=compressionlevel))
     elif(compression == "bzip2" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4685,7 +4778,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
         bytesfp.write(BzipCompressData(
             fp.read(), compresslevel=compressionlevel))
     elif(compression == "lz4" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4693,14 +4786,14 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
         bytesfp.write(lz4.frame.compress(
             fp.read(), compression_level=compressionlevel))
     elif((compression == "lzo" or compression == "lzop") and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
             compressionlevel = int(compressionlevel)
         bytesfp.write(lzo.compress(fp.read(), compressionlevel))
     elif(compression == "zstd" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4708,7 +4801,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
         compressor = zstandard.ZstdCompressor(compressionlevel, threads=get_default_threads())
         bytesfp.write(compressor.compress(fp.read()))
     elif(compression == "lzma" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4718,7 +4811,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
         except (NotImplementedError, lzma.LZMAError):
             bytesfp.write(lzma.compress(fp.read(), format=lzma.FORMAT_ALONE))
     elif(compression == "xz" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4728,7 +4821,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None, compressi
         except (NotImplementedError, lzma.LZMAError):
             bytesfp.write(lzma.compress(fp.read(), format=lzma.FORMAT_XZ))
     elif(compression == "zlib" and compression in compressionsupport):
-        bytesfp = BytesIO()
+        bytesfp = MkTempFile()
         if(compressionlevel is None):
             compressionlevel = 9
         else:
@@ -4898,11 +4991,11 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
                 pass
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -5097,7 +5190,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
             fwinattributes = format(int(0), 'x').lower()
         fcompression = ""
         fcsize = format(int(0), 'x').lower()
-        fcontents = BytesIO()
+        fcontents = MkTempFile()
         fcencoding = "UTF-8"
         curcompression = "none"
         if not followlink and ftype in data_types:
@@ -5115,7 +5208,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
                         ilmin = 0
                         ilcsize = []
                         while(ilmin < ilsize):
-                            cfcontents = BytesIO()
+                            cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents)
                             fcontents.seek(0, 0)
@@ -5132,7 +5225,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
                         ilcmin = ilcsize.index(min(ilcsize))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     shutil.copyfileobj(fcontents, cfcontents)
                     cfcontents.seek(0, 0)
                     cfcontents = CompressOpenFileAlt(
@@ -5162,7 +5255,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
                         ilmin = 0
                         ilcsize = []
                         while(ilmin < ilsize):
-                            cfcontents = BytesIO()
+                            cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents)
                             fcontents.seek(0, 0)
@@ -5179,7 +5272,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
                         ilcmin = ilcsize.index(min(ilcsize))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     shutil.copyfileobj(fcontents, cfcontents)
                     cfcontents.seek(0, 0)
                     cfcontents = CompressOpenFileAlt(
@@ -5282,11 +5375,11 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
                 pass
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -5305,7 +5398,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
     filetoinode = {}
     inodetoforminode = {}
     if(infile == "-"):
-        infile = BytesIO()
+        infile = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, infile)
         else:
@@ -5444,7 +5537,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
         fwinattributes = format(int(0), 'x').lower()
         fcompression = ""
         fcsize = format(int(0), 'x').lower()
-        fcontents = BytesIO()
+        fcontents = MkTempFile()
         fcencoding = "UTF-8"
         curcompression = "none"
         if ftype in data_types:
@@ -5463,7 +5556,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
                     ilmin = 0
                     ilcsize = []
                     while(ilmin < ilsize):
-                        cfcontents = BytesIO()
+                        cfcontents = MkTempFile()
                         fcontents.seek(0, 0)
                         shutil.copyfileobj(fcontents, cfcontents)
                         fcontents.seek(0, 0)
@@ -5480,7 +5573,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
                     ilcmin = ilcsize.index(min(ilcsize))
                     curcompression = compressionuselist[ilcmin]
                 fcontents.seek(0, 0)
-                cfcontents = BytesIO()
+                cfcontents = MkTempFile()
                 shutil.copyfileobj(fcontents, cfcontents)
                 cfcontents.seek(0, 0)
                 cfcontents = CompressOpenFileAlt(
@@ -5579,11 +5672,11 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
                 pass
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -5602,7 +5695,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
     filetoinode = {}
     inodetoforminode = {}
     if(infile == "-"):
-        infile = BytesIO()
+        infile = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, infile)
         else:
@@ -5743,7 +5836,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
                 fgname = ""
         except ImportError:
             fgname = ""
-        fcontents = BytesIO()
+        fcontents = MkTempFile()
         fcencoding = "UTF-8"
         curcompression = "none"
         if ftype == 0:
@@ -5760,7 +5853,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
                     ilmin = 0
                     ilcsize = []
                     while(ilmin < ilsize):
-                        cfcontents = BytesIO()
+                        cfcontents = MkTempFile()
                         fcontents.seek(0, 0)
                         shutil.copyfileobj(fcontents, cfcontents)
                         fcontents.seek(0, 0)
@@ -5774,7 +5867,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
                     ilcmin = ilcsize.index(min(ilcsize))
                     curcompression = compressionuselist[ilcmin]
                 fcontents.seek(0, 0)
-                cfcontents = BytesIO()
+                cfcontents = MkTempFile()
                 shutil.copyfileobj(fcontents, cfcontents)
                 cfcontents.seek(0, 0)
                 cfcontents = CompressOpenFileAlt(
@@ -5878,11 +5971,11 @@ if(rarfile_support):
                     pass
         if(outfile == "-" or outfile is None):
             verbose = False
-            fp = BytesIO()
+            fp = MkTempFile()
         elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
             fp = outfile
         elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-            fp = BytesIO()
+            fp = MkTempFile()
         else:
             fbasename = os.path.splitext(outfile)[0]
             fextname = os.path.splitext(outfile)[1]
@@ -6060,7 +6153,7 @@ if(rarfile_support):
                     fgname = ""
             except ImportError:
                 fgname = ""
-            fcontents = BytesIO()
+            fcontents = MkTempFile()
             fcencoding = "UTF-8"
             curcompression = "none"
             if ftype == 0:
@@ -6077,7 +6170,7 @@ if(rarfile_support):
                         ilmin = 0
                         ilcsize = []
                         while(ilmin < ilsize):
-                            cfcontents = BytesIO()
+                            cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents)
                             fcontents.seek(0, 0)
@@ -6094,7 +6187,7 @@ if(rarfile_support):
                         ilcmin = ilcsize.index(min(ilcsize))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     shutil.copyfileobj(fcontents, cfcontents)
                     cfcontents.seek(0, 0)
                     cfcontents = CompressOpenFileAlt(
@@ -6198,11 +6291,11 @@ if(py7zr_support):
                     pass
         if(outfile == "-" or outfile is None):
             verbose = False
-            fp = BytesIO()
+            fp = MkTempFile()
         elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
             fp = outfile
         elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-            fp = BytesIO()
+            fp = MkTempFile()
         else:
             fbasename = os.path.splitext(outfile)[0]
             fextname = os.path.splitext(outfile)[1]
@@ -6311,7 +6404,7 @@ if(py7zr_support):
                     fgname = ""
             except ImportError:
                 fgname = ""
-            fcontents = BytesIO()
+            fcontents = MkTempFile()
             fcencoding = "UTF-8"
             curcompression = "none"
             if ftype == 0:
@@ -6331,7 +6424,7 @@ if(py7zr_support):
                         ilmin = 0
                         ilcsize = []
                         while(ilmin < ilsize):
-                            cfcontents = BytesIO()
+                            cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents)
                             fcontents.seek(0, 0)
@@ -6348,7 +6441,7 @@ if(py7zr_support):
                         ilcmin = ilcsize.index(min(ilcsize))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     shutil.copyfileobj(fcontents, cfcontents)
                     cfcontents.seek(0, 0)
                     cfcontents = CompressOpenFileAlt(
@@ -6463,7 +6556,7 @@ def ArchiveFileSeekToFileNum(infile, fmttype="auto", seekto=0, listonly=False, c
             return False
         fp.seek(0, 0)
     elif(infile == "-"):
-        fp = BytesIO()
+        fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
@@ -6477,7 +6570,7 @@ def ArchiveFileSeekToFileNum(infile, fmttype="auto", seekto=0, listonly=False, c
             return False
         fp.seek(0, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = BytesIO()
+        fp = MkTempFile()
         fp.write(infile)
         fp.seek(0, 0)
         fp = UncompressFileAlt(fp, formatspecs)
@@ -6778,7 +6871,7 @@ def ArchiveFileSeekToFileName(infile, fmttype="auto", seekfile=None, listonly=Fa
             return False
         fp.seek(0, 0)
     elif(infile == "-"):
-        fp = BytesIO()
+        fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
@@ -6792,7 +6885,7 @@ def ArchiveFileSeekToFileName(infile, fmttype="auto", seekfile=None, listonly=Fa
             return False
         fp.seek(0, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = BytesIO()
+        fp = MkTempFile()
         fp.write(infile)
         fp.seek(0, 0)
         fp = UncompressFileAlt(fp, formatspecs)
@@ -7099,7 +7192,7 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
             return False
         fp.seek(0, 0)
     elif(infile == "-"):
-        fp = BytesIO()
+        fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
@@ -7113,7 +7206,7 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
             return False
         fp.seek(0, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = BytesIO()
+        fp = MkTempFile()
         fp.write(infile)
         fp.seek(0, 0)
         fp = UncompressFileAlt(fp, formatspecs)
@@ -7451,7 +7544,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
             return False
         fp.seek(0, 0)
     elif(infile == "-"):
-        fp = BytesIO()
+        fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
@@ -7465,7 +7558,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
             return False
         fp.seek(0, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = BytesIO()
+        fp = MkTempFile()
         fp.write(infile)
         fp.seek(0, 0)
         fp = UncompressFileAlt(fp, formatspecs)
@@ -7765,7 +7858,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
                 outfjsoncontent = {}
         elif(outfjsontype=="list"):
             outfprejsoncontent = fp.read(outfjsonsize).decode("UTF-8")
-            flisttmp = BytesIO()
+            flisttmp = MkTempFile()
             flisttmp.write(outfprejsoncontent.encode())
             flisttmp.seek(0)
             outfjsoncontent = ReadFileHeaderData(flisttmp, outfjsonlen, formatspecs['format_delimiter'])
@@ -7818,7 +7911,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
                 VerbosePrintOut("'" + outfjsonchecksum + "' != " + "'" + injsonfcs + "'")
                 return False
         outfcontentstart = fp.tell()
-        outfcontents = BytesIO()
+        outfcontents = MkTempFile()
         pyhascontents = False
         if(outfsize > 0 and not listonly):
             if(outfcompression == "none" or outfcompression == "" or outfcompression == "auto"):
@@ -7843,7 +7936,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
                     cfcontents = UncompressFileAlt(
                         outfcontents, formatspecs)
                     cfcontents.seek(0, 0)
-                    outfcontents = BytesIO()
+                    outfcontents = MkTempFile()
                     shutil.copyfileobj(cfcontents, outfcontents)
                     cfcontents.close()
                     outfcontents.seek(0, 0)
@@ -7904,7 +7997,7 @@ def ArchiveFileStringToArray(instr, seekstart=0, seekend=0, listonly=False, cont
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
-    fp = BytesIO(instr)
+    fp = MkTempFile(instr)
     listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
     return listarchivefiles
 
@@ -7913,7 +8006,7 @@ def TarFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
-    fp = BytesIO()
+    fp = MkTempFile()
     fp = PackArchiveFileFromTarFile(
         infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
     listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
@@ -7924,7 +8017,7 @@ def ZipFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
-    fp = BytesIO()
+    fp = MkTempFile()
     fp = PackArchiveFileFromZipFile(
         infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
     listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
@@ -7940,7 +8033,7 @@ if(rarfile_support):
         checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
-        fp = BytesIO()
+        fp = MkTempFile()
         fp = PackArchiveFileFromRarFile(
             infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
         listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
@@ -7955,7 +8048,7 @@ if(py7zr_support):
         checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
-        fp = BytesIO()
+        fp = MkTempFile()
         fp = PackArchiveFileFromSevenZipFile(
             infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
         listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
@@ -7982,7 +8075,7 @@ def InFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=
 
 
 def ListDirToArray(infiles, dirlistfromtxt=False, fmttype=__file_format_default__, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, listonly=False, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, seektoend=False, returnfp=False):
-    outarray = BytesIO()
+    outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, followlink, checksumtype, extradata, formatspecs, verbose, True)
     listarchivefiles = ArchiveFileToArray(outarray, "auto", seekstart, seekend, listonly, True, skipchecksum, formatspecs, seektoend, returnfp)
@@ -8091,11 +8184,11 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         return False
     if(outfile == "-" or outfile is None):
         verbose = False
-        fp = BytesIO()
+        fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
     elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
-        fp = BytesIO()
+        fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
         fextname = os.path.splitext(outfile)[1]
@@ -8183,7 +8276,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             jsondata = listarchivefiles['ffilelist'][reallcfi]['fjsondata']
         fcontents = listarchivefiles['ffilelist'][reallcfi]['fcontents']
         if(not listarchivefiles['ffilelist'][reallcfi]['fcontentasfile']):
-            fcontents = BytesIO(fcontents)
+            fcontents = MkTempFile(fcontents)
         typechecktest = CheckCompressionType(fcontents, closefp=False)
         fcontents.seek(0, 0)
         fcencoding = GetFileEncoding(fcontents, False)
@@ -8199,7 +8292,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 ilmin = 0
                 ilcsize = []
                 while(ilmin < ilsize):
-                    cfcontents = BytesIO()
+                    cfcontents = MkTempFile()
                     fcontents.seek(0, 0)
                     shutil.copyfileobj(fcontents, cfcontents)
                     fcontents.seek(0, 0)
@@ -8216,7 +8309,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 ilcmin = ilcsize.index(min(ilcsize))
                 curcompression = compressionuselist[ilcmin]
             fcontents.seek(0, 0)
-            cfcontents = BytesIO()
+            cfcontents = MkTempFile()
             shutil.copyfileobj(fcontents, cfcontents)
             cfcontents.seek(0, 0)
             cfcontents = CompressOpenFileAlt(
@@ -8265,7 +8358,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                     extradata = flinkinfo['fjsondata']
                 fcontents = flinkinfo['fcontents']
                 if(not flinkinfo['fcontentasfile']):
-                    fcontents = BytesIO(fcontents)
+                    fcontents = MkTempFile(fcontents)
                 ftypehex = format(flinkinfo['ftype'], 'x').lower()
         else:
             ftypehex = format(
@@ -8336,14 +8429,14 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
 
 
 def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
-    fp = BytesIO(instr)
+    fp = MkTempFile(instr)
     listarchivefiles = RePackArchiveFile(fp, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist,
                                      checksumtype, skipchecksum, extradata, formatspecs, verbose, returnfp)
     return listarchivefiles
 
 
 def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
-    outarray = BytesIO()
+    outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, compressionuselist, followlink, checksumtype, extradata, formatspecs, verbose, True)
     listarchivefiles = RePackArchiveFile(outarray, outfile, fmttype, compression, compresswholefile,
@@ -8401,7 +8494,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
         if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 0 or listarchivefiles['ffilelist'][lcfi]['ftype'] == 7):
             with open(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
                 if(not listarchivefiles['ffilelist'][lcfi]['fcontentasfile']):
-                    listarchivefiles['ffilelist'][lcfi]['fcontents'] = BytesIO(
+                    listarchivefiles['ffilelist'][lcfi]['fcontents'] = MkTempFile(
                         listarchivefiles['ffilelist'][lcfi]['fcontents'])
                 listarchivefiles['ffilelist'][lcfi]['fcontents'].seek(0, 0)
                 shutil.copyfileobj(
@@ -8453,7 +8546,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                 if(flinkinfo['ftype'] == 0 or flinkinfo['ftype'] == 7):
                     with open(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
                         if(not flinkinfo['fcontentasfile']):
-                            flinkinfo['fcontents'] = BytesIO(
+                            flinkinfo['fcontents'] = MkTempFile(
                                 flinkinfo['fcontents'])
                         flinkinfo['fcontents'].seek(0, 0)
                         shutil.copyfileobj(flinkinfo['fcontents'], fpc)
@@ -8532,7 +8625,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                 if(flinkinfo['ftype'] == 0 or flinkinfo['ftype'] == 7):
                     with open(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
                         if(not flinkinfo['fcontentasfile']):
-                            flinkinfo['fcontents'] = BytesIO(
+                            flinkinfo['fcontents'] = MkTempFile(
                                 flinkinfo['fcontents'])
                         flinkinfo['fcontents'].seek(0, 0)
                         shutil.copyfileobj(flinkinfo['fcontents'], fpc)
@@ -8610,7 +8703,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
 
 
 def UnPackArchiveFileString(instr, outdir=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
-    fp = BytesIO(instr)
+    fp = MkTempFile(instr)
     listarchivefiles = UnPackArchiveFile(fp, outdir, followlink, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
     return listarchivefiles
 
@@ -8683,7 +8776,7 @@ def ArchiveFileListFiles(infile, fmttype="auto", seekstart=0, seekend=0, skipche
 
 
 def ArchiveFileStringListFiles(instr, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
-    fp = BytesIO(instr)
+    fp = MkTempFile(instr)
     listarchivefiles = ArchiveFileListFiles(
         instr, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, newstyle, returnfp)
     return listarchivefiles
@@ -8693,7 +8786,7 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
     if(infile == "-"):
-        infile = BytesIO()
+        infile = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, infile)
         else:
@@ -8818,7 +8911,7 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
     if(infile == "-"):
-        infile = BytesIO()
+        infile = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, infile)
         else:
@@ -9214,7 +9307,7 @@ def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict_
 
 
 def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
-    outarray = BytesIO()
+    outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, compression, compresswholefile,
                               compressionlevel, followlink, checksumtype, formatspecs, False, True)
     listarchivefiles = ArchiveFileListFiles(
@@ -9300,7 +9393,7 @@ def download_file_from_ftp_file(url):
     ftp.login(urlparts.username, urlparts.password)
     if(urlparts.scheme == "ftps"):
         ftp.prot_p()
-    ftpfile = BytesIO()
+    ftpfile = MkTempFile()
     ftp.retrbinary("RETR "+urlparts.path, ftpfile.write)
     #ftp.storbinary("STOR "+urlparts.path, ftpfile.write);
     ftp.close()
@@ -9361,7 +9454,7 @@ def upload_file_to_ftp_file(ftpfile, url):
 
 
 def upload_file_to_ftp_string(ftpstring, url):
-    ftpfileo = BytesIO(ftpstring)
+    ftpfileo = MkTempFile(ftpstring)
     ftpfile = upload_file_to_ftp_file(ftpfileo, url)
     ftpfileo.close()
     return ftpfile
@@ -9413,7 +9506,7 @@ def download_file_from_http_file(url, headers=None, usehttp=__use_http_lib__):
         return download_file_from_ftp_file(url)
 
     # Create a temporary file object
-    httpfile = BytesIO()
+    httpfile = MkTempFile()
 
     # 1) Requests branch
     if usehttp == 'requests' and haverequests:
@@ -9521,7 +9614,7 @@ if(haveparamiko):
             log.info("Error With URL "+url)
             return False
         sftp = ssh.open_sftp()
-        sftpfile = BytesIO()
+        sftpfile = MkTempFile()
         sftp.getfo(urlparts.path, sftpfile)
         sftp.close()
         ssh.close()
@@ -9591,7 +9684,7 @@ else:
 
 if(haveparamiko):
     def upload_file_to_sftp_string(sftpstring, url):
-        sftpfileo = BytesIO(sftpstring)
+        sftpfileo = MkTempFile(sftpstring)
         sftpfile = upload_file_to_sftp_files(sftpfileo, url)
         sftpfileo.close()
         return sftpfile
@@ -9637,7 +9730,7 @@ if(havepysftp):
             log.info("Error With URL "+url)
             return False
         sftp = ssh.open_sftp()
-        sftpfile = BytesIO()
+        sftpfile = MkTempFile()
         sftp.getfo(urlparts.path, sftpfile)
         sftp.close()
         ssh.close()
@@ -9704,7 +9797,7 @@ else:
 
 if(havepysftp):
     def upload_file_to_pysftp_string(sftpstring, url):
-        sftpfileo = BytesIO(sftpstring)
+        sftpfileo = MkTempFile(sftpstring)
         sftpfile = upload_file_to_pysftp_file(ftpfileo, url)
         sftpfileo.close()
         return sftpfile
@@ -9806,8 +9899,9 @@ def upload_file_to_internet_string(ifp, url):
 
 
 def upload_file_to_internet_compress_string(ifp, url, compression="auto", compressionlevel=None, compressionuselist=compressionlistalt, formatspecs=__file_format_dict__):
+    internetfileo = MkTempFile(ifp)
     fp = CompressOpenFileAlt(
-        BytesIO(ifp), compression, compressionlevel, compressionuselist, formatspecs)
+        internetfileo, compression, compressionlevel, compressionuselist, formatspecs)
     if(not archivefileout):
         return False
     fp.seek(0, 0)

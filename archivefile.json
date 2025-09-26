@@ -2,7 +2,8 @@
     "config": {
         "default": "ArchiveFile",
         "proname": "PyArchiveFile",
-        "includedef": "true"
+        "includedef": "true",
+        "inmemfile": "true"
     },
     "ArchiveFile": {
         "len": "11",
