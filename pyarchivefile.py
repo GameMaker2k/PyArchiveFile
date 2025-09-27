@@ -9395,6 +9395,7 @@ def download_file_from_ftp_file(url):
         ftp.prot_p()
     # Try EPSV first, then fall back
     try:
+        ftp.force_epsv = True
         ftp.sendcmd("EPSV")   # request extended passive
         ftp.retrlines("LIST", callback=lambda line: None)
     except all_errors:
@@ -9405,7 +9406,10 @@ def download_file_from_ftp_file(url):
             ftp.set_pasv(False)
             ftp.retrlines("LIST", callback=lambda line: None)
     ftpfile = MkTempFile()
-    ftp.retrbinary("RETR "+urlparts.path, ftpfile.write)
+    if file_dir and file_dir not in ("/", ""):
+        ftp.cwd(file_dir)
+    ftp.retrbinary("RETR "+file_name, ftpfile.write)
+    #ftp.retrbinary("RETR "+urlparts.path, ftpfile.write)
     ftp.close()
     ftpfile.seek(0, 0)
     return ftpfile
@@ -9469,6 +9473,7 @@ def upload_file_to_ftp_file(ftpfile, url):
         ftp.prot_p()
     # Try EPSV first, then fall back
     try:
+        ftp.force_epsv = True
         ftp.sendcmd("EPSV")   # request extended passive
         ftp.retrlines("LIST", callback=lambda line: None)
     except all_errors:
@@ -9478,7 +9483,10 @@ def upload_file_to_ftp_file(ftpfile, url):
         except all_errors:
             ftp.set_pasv(False)
             ftp.retrlines("LIST", callback=lambda line: None)
-    ftp.storbinary("STOR "+urlparts.path, ftpfile)
+    if file_dir and file_dir not in ("/", ""):
+        ftp.cwd(file_dir)
+    ftp.storbinary("STOR "+file_name, ftpfile)
+    #ftp.storbinary("STOR "+urlparts.path, ftpfile)
     ftp.close()
     ftpfile.seek(0, 0)
     return ftpfile
