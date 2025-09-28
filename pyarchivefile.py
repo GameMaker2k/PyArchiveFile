@@ -264,7 +264,8 @@ def get_default_threads():
         # os.cpu_count() might not be available in some environments
         return 1
 
-
+__upload_proto_support__ = "^(ftp|ftps|sftp):\\/\\/"
+__download_proto_support__ = "^(http|https|ftp|ftps|sftp):\\/\\/"
 __use_pysftp__ = False
 if(not havepysftp):
     __use_pysftp__ = False
@@ -2985,7 +2986,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
         if(not fp):
             return False
         fp.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp.seek(0, 0)
         compresscheck = CheckCompressionType(fp, formatspecs, False)
@@ -3173,7 +3174,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
         if(not fp):
             return False
         fp.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp.seek(0, 0)
         compresscheck = CheckCompressionType(fp, formatspecs, False)
@@ -3394,7 +3395,7 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -3430,7 +3431,7 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
         outvar = fp.read()
         fp.close()
         return outvar
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -3943,7 +3944,7 @@ def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmtt
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -3980,7 +3981,7 @@ def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmtt
         outvar = fp.read()
         fp.close()
         return outvar
-    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -4023,7 +4024,7 @@ def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmtty
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -4060,7 +4061,7 @@ def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmtty
         outvar = fp.read()
         fp.close()
         return outvar
-    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -4994,7 +4995,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -5323,7 +5324,7 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
         outvar = fp.read()
         fp.close()
         return outvar
-    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -5378,7 +5379,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -5407,7 +5408,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
         if(not infile):
             return False
         infile.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         infile = download_file_from_internet_file(infile)
         infile.seek(0, 0)
         if(not infile):
@@ -5624,7 +5625,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
         outvar = fp.read()
         fp.close()
         return outvar
-    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -5675,7 +5676,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -5704,7 +5705,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
         if(not infile):
             return False
         infile.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         infile = download_file_from_internet_file(infile)
         infile.seek(0, 0)
         if(not infile):
@@ -5918,7 +5919,7 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
         outvar = fp.read()
         fp.close()
         return outvar
-    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -5974,7 +5975,7 @@ if(rarfile_support):
             fp = MkTempFile()
         elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
             fp = outfile
-        elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+        elif(re.findall(__upload_proto_support__, outfile)):
             fp = MkTempFile()
         else:
             fbasename = os.path.splitext(outfile)[0]
@@ -6238,7 +6239,7 @@ if(rarfile_support):
             outvar = fp.read()
             fp.close()
             return outvar
-        elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+        elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
             fp = CompressOpenFileAlt(
                 fp, compression, compressionlevel, compressionuselist, formatspecs)
             fp.seek(0, 0)
@@ -6294,7 +6295,7 @@ if(py7zr_support):
             fp = MkTempFile()
         elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
             fp = outfile
-        elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+        elif(re.findall(__upload_proto_support__, outfile)):
             fp = MkTempFile()
         else:
             fbasename = os.path.splitext(outfile)[0]
@@ -6492,7 +6493,7 @@ if(py7zr_support):
             outvar = fp.read()
             fp.close()
             return outvar
-        elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+        elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
             fp = CompressOpenFileAlt(
                 fp, compression, compressionlevel, compressionuselist, formatspecs)
             fp.seek(0, 0)
@@ -6580,7 +6581,7 @@ def ArchiveFileSeekToFileNum(infile, fmttype="auto", seekto=0, listonly=False, c
         if(not fp):
             return False
         fp.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp = UncompressFileAlt(fp, formatspecs)
         compresscheck = CheckCompressionType(fp, formatspecs, False)
@@ -6895,7 +6896,7 @@ def ArchiveFileSeekToFileName(infile, fmttype="auto", seekfile=None, listonly=Fa
         if(not fp):
             return False
         fp.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp = UncompressFileAlt(fp, formatspecs)
         compresscheck = CheckCompressionType(fp, formatspecs, False)
@@ -7216,7 +7217,7 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
         if(not fp):
             return False
         fp.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp = UncompressFileAlt(fp, formatspecs)
         compresscheck = CheckCompressionType(fp, formatspecs, False)
@@ -7568,7 +7569,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
         if(not fp):
             return False
         fp.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp = UncompressFileAlt(fp, formatspecs)
         compresscheck = CheckCompressionType(fp, formatspecs, False)
@@ -8187,7 +8188,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         fp = MkTempFile()
     elif(hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = outfile
-    elif(re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif(re.findall(__upload_proto_support__, outfile)):
         fp = MkTempFile()
     else:
         fbasename = os.path.splitext(outfile)[0]
@@ -8415,7 +8416,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         outvar = fp.read()
         fp.close()
         return outvar
-    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall("^(ftp|ftps|sftp):\\/\\/", outfile)):
+    elif((not hasattr(outfile, "read") and not hasattr(outfile, "write")) and re.findall(__upload_proto_support__, outfile)):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
         fp.seek(0, 0)
@@ -8795,7 +8796,7 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
         if(not infile):
             return False
         infile.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         infile = download_file_from_internet_file(infile)
         infile.seek(0, 0)
         if(not infile):
@@ -8920,7 +8921,7 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
         if(not infile):
             return False
         infile.seek(0, 0)
-    elif(re.findall("^(http|https|ftp|ftps|sftp):\\/\\/", infile)):
+    elif(re.findall(__download_proto_support__, infile)):
         infile = download_file_from_internet_file(infile)
         infile.seek(0, 0)
         if(not infile):
