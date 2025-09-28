@@ -640,6 +640,7 @@ def _resolves_outside(base_rel, target_rel):
         return False
     return True
 
+
 def DetectTarbombArchivefileArray(listarchivefiles,
                                  top_file_ratio_threshold=0.6,
                                  min_members_for_ratio=4,
@@ -783,7 +784,6 @@ def DetectTarbombArchivefileArray(listarchivefiles,
         "symlink_escapes_root": any_symlink_escape,
         "symlink_issues": symlink_issues,
     }
-
 
 
 def MkTempFile(data=None, inmem=__use_inmemfile__, isbytes=True, prefix=__project__,
