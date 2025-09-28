@@ -264,8 +264,8 @@ def get_default_threads():
         # os.cpu_count() might not be available in some environments
         return 1
 
-__upload_proto_support__ = "^(ftp|ftps|sftp):\\/\\/"
-__download_proto_support__ = "^(http|https|ftp|ftps|sftp):\\/\\/"
+__upload_proto_support__ = "^(ftp|ftps|sftp|scp):\\/\\/"
+__download_proto_support__ = "^(http|https|ftp|ftps|sftp|scp):\\/\\/"
 __use_pysftp__ = False
 if(not havepysftp):
     __use_pysftp__ = False
@@ -9386,7 +9386,7 @@ def download_file_from_ftp_file(url):
         ftp = FTP_TLS()
     else:
         return False
-    if(urlparts.scheme == "sftp"):
+    if(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
         if(__use_pysftp__):
             return download_file_from_pysftp_file(url)
         else:
@@ -9484,7 +9484,7 @@ def upload_file_to_ftp_file(ftpfile, url):
         ftp = FTP_TLS()
     else:
         return False
-    if(urlparts.scheme == "sftp"):
+    if(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
         if(__use_pysftp__):
             return upload_file_to_pysftp_file(url)
         else:
@@ -9599,7 +9599,7 @@ def download_file_from_http_file(url, headers=None, usehttp=__use_http_lib__):
                               urlparts.params, urlparts.query, urlparts.fragment))
 
     # Handle SFTP/FTP
-    if urlparts.scheme == "sftp":
+    if urlparts.scheme == "sftp" or urlparts.scheme == "scp":
         if __use_pysftp__:
             return download_file_from_pysftp_file(url)
         else:
@@ -9701,7 +9701,7 @@ if(haveparamiko):
             return download_file_from_ftp_file(url)
         elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
             return download_file_from_http_file(url)
-        if(urlparts.scheme != "sftp"):
+        if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
@@ -9762,7 +9762,7 @@ if(haveparamiko):
             return upload_file_to_ftp_file(sftpfile, url)
         elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
             return False
-        if(urlparts.scheme != "sftp"):
+        if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
@@ -9823,7 +9823,7 @@ if(havepysftp):
             return download_file_from_ftp_file(url)
         elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
             return download_file_from_http_file(url)
-        if(urlparts.scheme != "sftp"):
+        if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         try:
             sftp = pysftp.Connection(urlparts.hostname, port=sftp_port,
@@ -9880,7 +9880,7 @@ if(havepysftp):
             return upload_file_to_ftp_file(sftpfile, url)
         elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
             return False
-        if(urlparts.scheme != "sftp"):
+        if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         try:
             sftp = pysftp.Connection(urlparts.hostname, port=sftp_port,
@@ -9920,7 +9920,7 @@ def download_file_from_internet_file(url, headers=geturls_headers_pyfile_python_
         return download_file_from_http_file(url, headers, usehttp)
     elif(urlparts.scheme == "ftp" or urlparts.scheme == "ftps"):
         return download_file_from_ftp_file(url)
-    elif(urlparts.scheme == "sftp"):
+    elif(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
         if(__use_pysftp__ and havepysftp):
             return download_file_from_pysftp_file(url)
         else:
@@ -9945,7 +9945,7 @@ def download_file_from_internet_string(url, headers=geturls_headers_pyfile_pytho
         return download_file_from_http_string(url, headers)
     elif(urlparts.scheme == "ftp" or urlparts.scheme == "ftps"):
         return download_file_from_ftp_string(url)
-    elif(urlparts.scheme == "sftp"):
+    elif(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
         if(__use_pysftp__ and havepysftp):
             return download_file_from_pysftp_string(url)
         else:
@@ -9972,7 +9972,7 @@ def upload_file_to_internet_file(ifp, url):
         return False
     elif(urlparts.scheme == "ftp" or urlparts.scheme == "ftps"):
         return upload_file_to_ftp_file(ifp, url)
-    elif(urlparts.scheme == "sftp"):
+    elif(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
         if(__use_pysftp__ and havepysftp):
             return upload_file_to_pysftp_file(ifp, url)
         else:
@@ -9997,7 +9997,7 @@ def upload_file_to_internet_string(ifp, url):
         return False
     elif(urlparts.scheme == "ftp" or urlparts.scheme == "ftps"):
         return upload_file_to_ftp_string(ifp, url)
-    elif(urlparts.scheme == "sftp"):
+    elif(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
         if(__use_pysftp__ and havepysftp):
             return upload_file_to_pysftp_string(ifp, url)
         else:
