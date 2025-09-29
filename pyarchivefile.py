@@ -645,7 +645,7 @@ def _resolves_outside(base_rel, target_rel):
     return True
 
 
-def DetectTarbombArchivefileArray(listarchivefiles,
+def DetectTarBombArchiveFileArray(listarchivefiles,
                                  top_file_ratio_threshold=0.6,
                                  min_members_for_ratio=4,
                                  symlink_policy="escape-only",  # 'escape-only' | 'deny' | 'single-folder-only'
