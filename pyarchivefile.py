@@ -2928,6 +2928,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
         outlist['ffilelist'].append(HeaderOut)
         countnum = countnum + 1
         realidnum = realidnum + 1
+    outlist.update({'fp': fp})
     return outlist
 
 
@@ -3279,6 +3280,33 @@ def ReadInMultipleFileWithContentToArray(infile, fmttype="auto", filestart=0, se
 
 def ReadInMultipleFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
     return ReadInMultipleFileWithContentToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+
+
+def ReadInStackedFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+    outretval = []
+    outstartfile = filestart
+    while True:
+        outarray = ReadInFileWithContentToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        if outarray is False:   # stop when function signals False
+            break
+        infile = outarray['fp']
+        print(infile.tell())
+        outretval.append(outarray)
+    return outretval
+
+
+def ReadInMultipleStackedFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+    if(isinstance(infile, (list, tuple, ))):
+        pass
+    else:
+        infile = [infile]
+    outretval = {}
+    for curfname in infile:
+        curretfile[curfname] = ReadInStackedFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+    return outretval
+
+def ReadInMultipleStackedFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+    return ReadInMultipleStackedFileWithContentToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
 
 
 def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -4031,12 +4059,6 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
                       fcsize, fuid, funame, fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, "+"+str(len(formatspecs['format_delimiter']))]
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
-    if(numfiles > 0):
-        try:
-            fp.write(AppendNullBytes(
-                ["0", "0"], formatspecs['format_delimiter']))
-        except OSError:
-            return False
     fp.seek(0, 0)
     return fp
 
@@ -4100,12 +4122,6 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, filevalues=[], extr
         fcontents.seek(0, 0)
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
-    if(numfiles > 0):
-        try:
-            fp.write(AppendNullBytes(
-                ["0", "0"], formatspecs['format_delimiter']))
-        except OSError:
-            return False
     return fp
 
 
@@ -5498,12 +5514,6 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
         fcontents.close()
-    if(numfiles > 0):
-        try:
-            fp.write(AppendNullBytes(
-                ["0", "0"], formatspecs['format_delimiter']))
-        except OSError:
-            return False
     if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
@@ -5799,12 +5809,6 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
         fcontents.close()
-    if(numfiles > 0):
-        try:
-            fp.write(AppendNullBytes(
-                ["0", "0"], formatspecs['format_delimiter']))
-        except OSError:
-            return False
     if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
@@ -6093,12 +6097,6 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
         fcontents.close()
-    if(numfiles > 0):
-        try:
-            fp.write(AppendNullBytes(
-                ["0", "0"], formatspecs['format_delimiter']))
-        except OSError:
-            return False
     if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
@@ -6413,12 +6411,6 @@ if(rarfile_support):
             AppendFileHeaderWithContent(
                 fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
             fcontents.close()
-        if(numfiles > 0):
-            try:
-                fp.write(AppendNullBytes(
-                    ["0", "0"], formatspecs['format_delimiter']))
-            except OSError:
-                return False
         if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
             fp = CompressOpenFileAlt(
                 fp, compression, compressionlevel, compressionuselist, formatspecs)
@@ -6667,12 +6659,6 @@ if(py7zr_support):
             AppendFileHeaderWithContent(
                 fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs)
             fcontents.close()
-        if(numfiles > 0):
-            try:
-                fp.write(AppendNullBytes(
-                    ["0", "0"], formatspecs['format_delimiter']))
-            except OSError:
-                return False
         if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
             fp = CompressOpenFileAlt(
                 fp, compression, compressionlevel, compressionuselist, formatspecs)
@@ -7556,6 +7542,33 @@ def MultipleArchiveFilesToArray(infile, fmttype="auto", filestart=0, seekstart=0
     return MultipleArchiveFileToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
 
 
+def StackedArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+    outretval = []
+    outstartfile = filestart
+    while True:
+        outarray = ArchiveFileToArray(infile, fmttype, outstartfile, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, True)
+        if outarray is False:   # stop when function signals False
+            break
+        infile = outarray['fp']
+        print(infile.tell())
+        outretval.append(outarray)
+    return outretval
+
+
+def MultipleStackedArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+    if(isinstance(infile, (list, tuple, ))):
+        pass
+    else:
+        infile = [infile]
+    outretval = {}
+    for curfname in infile:
+        curretfile[curfname] = StackedArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+    return outretval
+
+def MultipleStackedArchiveFilesToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+    return MultipleStackedArchiveFileToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+
+
 def ArchiveFileStringToArray(instr, filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
@@ -7948,12 +7961,6 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         fcontents.close()
         lcfi = lcfi + 1
         reallcfi = reallcfi + 1
-    if(lcfx > 0):
-        try:
-            fp.write(AppendNullBytes(
-                ["0", "0"], formatspecs['format_delimiter']))
-        except OSError:
-            return False
     if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
