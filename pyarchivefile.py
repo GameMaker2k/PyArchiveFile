@@ -3305,6 +3305,11 @@ def ReadInMultipleStackedFileWithContentToArray(infile, fmttype="auto", filestar
         outretval[curfname] = ReadInStackedFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
+
+def ReadInStackedFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+    return ReadInStackedFileWithContentToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+
+
 def ReadInMultipleStackedFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
     return ReadInMultipleStackedFileWithContentToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
 
