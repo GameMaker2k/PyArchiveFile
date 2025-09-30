@@ -27,7 +27,6 @@ import stat
 import zlib
 import base64
 import shutil
-import struct
 import socket
 import struct
 import hashlib
