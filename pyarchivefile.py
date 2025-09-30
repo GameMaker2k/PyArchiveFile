@@ -3302,7 +3302,7 @@ def ReadInMultipleStackedFileWithContentToArray(infile, fmttype="auto", filestar
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile[curfname] = ReadInStackedFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        outretval[curfname] = ReadInStackedFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
 def ReadInMultipleStackedFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -3490,7 +3490,7 @@ def ReadInMultipleFileWithContentToList(infile, fmttype="auto", filestart=0, see
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile[curfname] = ReadInFileWithContentToList(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        outretval[curfname] = ReadInFileWithContentToList(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
 def ReadInMultipleFilesWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -7535,7 +7535,7 @@ def MultipleArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0,
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile[curfname] = ArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+        outretval[curfname] = ArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
     return outretval
 
 def MultipleArchiveFilesToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
@@ -7562,7 +7562,7 @@ def MultipleStackedArchiveFileToArray(infile, fmttype="auto", filestart=0, seeks
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile[curfname] = StackedArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+        outretval[curfname] = StackedArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
     return outretval
 
 def MultipleStackedArchiveFilesToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
