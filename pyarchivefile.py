@@ -14,7 +14,7 @@
     Copyright 2018-2024 Game Maker 2k - http://intdb.sourceforge.net/
     Copyright 2018-2024 Kazuki Przyborowski - https://github.com/KazukiPrzyborowski
 
-    $FileInfo: pyarchivefile.py - Last Update: 8/26/2025 Ver. 0.21.4 RC 1 - Author: cooldude2k $
+    $FileInfo: pyarchivefile.py - Last Update: 8/29/2025 Ver. 0.22.0 RC 1 - Author: cooldude2k $
 '''
 
 from __future__ import absolute_import, division, print_function, unicode_literals, generators, with_statement, nested_scopes
@@ -379,8 +379,8 @@ __file_format_extension__ = __file_format_multi_dict__[__file_format_default__][
 __file_format_dict__ = __file_format_multi_dict__[__file_format_default__]
 __project__ = __program_name__
 __project_url__ = "https://github.com/GameMaker2k/PyArchiveFile"
-__version_info__ = (0, 21, 4, "RC 1", 1)
-__version_date_info__ = (2025, 9, 26, "RC 1", 1)
+__version_info__ = (0, 22, 0, "RC 1", 1)
+__version_date_info__ = (2025, 9, 29, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
@@ -645,7 +645,7 @@ def _resolves_outside(base_rel, target_rel):
     return True
 
 
-def DetectTarBombArchiveFileArray(listarchivefiles,
+def DetectTarBombArchiveFileArray(listarrayfiles,
                                  top_file_ratio_threshold=0.6,
                                  min_members_for_ratio=4,
                                  symlink_policy="escape-only",  # 'escape-only' | 'deny' | 'single-folder-only'
@@ -654,7 +654,7 @@ def DetectTarBombArchiveFileArray(listarchivefiles,
     Detect 'tarbomb-like' archives from ArchiveFileToArray/TarFileToArray dicts.
 
     Parameters:
-      listarchivefiles: dict with key 'ffilelist' -> list of entries (requires 'fname')
+      listarrayfiles: dict with key 'ffilelist' -> list of entries (requires 'fname')
       top_file_ratio_threshold: float, fraction of root files considered tarbomb
       min_members_for_ratio: int, minimum members before ratio heuristic applies
       symlink_policy:
@@ -668,7 +668,7 @@ def DetectTarBombArchiveFileArray(listarchivefiles,
         has_absolute_paths, has_parent_traversal,
         symlink_escapes_root (bool), symlink_issues (list[{entry,target,reason}])
     """
-    files = listarchivefiles or {}
+    files = listarrayfiles or {}
     members = files.get('ffilelist') or []
 
     names = []
@@ -2234,7 +2234,7 @@ def ReadFileHeaderDataWoSize(fp, delimiter=__file_format_dict__['format_delimite
     if(headersize <= 0 or headernumfields <= 0):
         return []
     headerdata = ReadTillNullByteByNum(fp, delimiter, headernumfields)
-    #headerdata = ReadFileHeaderData(fp, headernumfields, delimiter);
+    #headerdata = ReadFileHeaderData(fp, headernumfields, delimiter)
     HeaderOut = preheaderdata + headerdata
     return HeaderOut
 
@@ -2721,22 +2721,20 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
     return outlist
 
 
-def ReadFileDataWithContent(fp, listonly=False, uncompress=True, skipchecksum=False, formatspecs=__file_format_dict__):
+def ReadFileDataWithContent(fp, filestart=0, listonly=False, uncompress=True, skipchecksum=False, formatspecs=__file_format_dict__):
     if(not hasattr(fp, "read")):
         return False
     delimiter = formatspecs['format_delimiter']
-    curloc = fp.tell()
+    curloc = filestart
     try:
-        fp.seek(0, 2);
+        fp.seek(0, 2)
     except OSError:
-        SeekToEndOfFile(fp);
+        SeekToEndOfFile(fp)
     except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
-    CatSizeEnd = CatSize;
+        SeekToEndOfFile(fp)
+    CatSize = fp.tell()
+    CatSizeEnd = CatSize
     fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
@@ -2751,8 +2749,6 @@ def ReadFileDataWithContent(fp, listonly=False, uncompress=True, skipchecksum=Fa
     else:
         inheader = ReadFileHeaderDataWoSize(
             fp, formatspecs['format_delimiter'])
-    if(curloc > 0):
-        fp.seek(curloc, 0)
     fprechecksumtype = inheader[-2]
     fprechecksum = inheader[-1]
     headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
@@ -2776,22 +2772,20 @@ def ReadFileDataWithContent(fp, listonly=False, uncompress=True, skipchecksum=Fa
     return flist
 
 
-def ReadFileDataWithContentToArray(fp, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False):
+def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False):
     if(not hasattr(fp, "read")):
         return False
     delimiter = formatspecs['format_delimiter']
-    curloc = fp.tell()
+    curloc = filestart
     try:
-        fp.seek(0, 2);
+        fp.seek(0, 2)
     except OSError:
-        SeekToEndOfFile(fp);
+        SeekToEndOfFile(fp)
     except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
-    CatSizeEnd = CatSize;
+        SeekToEndOfFile(fp)
+    CatSize = fp.tell()
+    CatSizeEnd = CatSize
     fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
@@ -2823,8 +2817,6 @@ def ReadFileDataWithContentToArray(fp, seekstart=0, seekend=0, listonly=False, c
                 fextrafieldslist = json.loads(fextrafieldslist[0])
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 pass
-    if(curloc > 0):
-        fp.seek(curloc, 0)
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
@@ -2936,22 +2928,20 @@ def ReadFileDataWithContentToArray(fp, seekstart=0, seekend=0, listonly=False, c
     return outlist
 
 
-def ReadFileDataWithContentToList(fp, seekstart=0, seekend=0, listonly=False, contentasfile=False, uncompress=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False):
+def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=False, uncompress=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False):
     if(not hasattr(fp, "read")):
         return False
     delimiter = formatspecs['format_delimiter']
-    curloc = fp.tell()
+    curloc = filestart
     try:
-        fp.seek(0, 2);
+        fp.seek(0, 2)
     except OSError:
-        SeekToEndOfFile(fp);
+        SeekToEndOfFile(fp)
     except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
-    CatSizeEnd = CatSize;
+        SeekToEndOfFile(fp)
+    CatSize = fp.tell()
+    CatSizeEnd = CatSize
     fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
@@ -2983,8 +2973,6 @@ def ReadFileDataWithContentToList(fp, seekstart=0, seekend=0, listonly=False, co
                 fextrafieldslist = json.loads(fextrafieldslist[0])
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 pass
-    if(curloc > 0):
-        fp.seek(curloc, 0)
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
@@ -3102,25 +3090,25 @@ def ReadFileDataWithContentToList(fp, seekstart=0, seekend=0, listonly=False, co
     return outlist
 
 
-def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
         fmttype = "auto"
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         fp = infile
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
             return TarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
@@ -3155,58 +3143,58 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
                 compresscheck = "zlib"
             else:
                 return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(infile == "-"):
         fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
             shutil.copyfileobj(sys.stdin, fp)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
         fp = MkTempFile()
         fp.write(infile)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not compresscheck):
             fextname = os.path.splitext(infile)[1]
             if(fextname == ".gz"):
@@ -3227,14 +3215,14 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
                 compresscheck = "zlib"
             else:
                 return False
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     else:
         infile = RemoveWindowsPath(infile)
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+        checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -3249,7 +3237,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
             return False
-        compresscheck = CheckCompressionType(infile, formatspecs, True)
+        compresscheck = CheckCompressionType(infile, formatspecs, filestart, True)
         if(not compresscheck):
             fextname = os.path.splitext(infile)[1]
             if(fextname == ".gz"):
@@ -3272,43 +3260,43 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0,
                 return False
         if(not compresscheck):
             return False
-        fp = UncompressFile(infile, formatspecs, "rb")
-    return ReadFileDataWithContentToArray(fp, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        fp = UncompressFile(infile, formatspecs, "rb", filestart)
+    return ReadFileDataWithContentToArray(fp, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
 
 
-def ReadInMultipleFileWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+def ReadInMultipleFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
     if(isinstance(infile, (list, tuple, ))):
         pass
     else:
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        outretval[curfname] = ReadInFileWithContentToArray(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        outretval[curfname] = ReadInFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
-def ReadInMultipleFilesWithContentToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
-    return ReadInMultipleFileWithContentToArray(infile, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+def ReadInMultipleFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+    return ReadInMultipleFileWithContentToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
 
 
-def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
         fmttype = "auto"
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         fp = infile
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
             return TarFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, True)
         elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
@@ -3343,58 +3331,58 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
                 compresscheck = "zlib"
             else:
                 return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(infile == "-"):
         fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
             shutil.copyfileobj(sys.stdin, fp)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
         fp = MkTempFile()
         fp.write(infile)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
-        fp.seek(0, 0)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         else:
-            fp.seek(0, 0)
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, False)
+            fp.seek(filestart, 0)
+            checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 formatspecs = formatspecs[checkcompressfile]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not compresscheck):
             fextname = os.path.splitext(infile)[1]
             if(fextname == ".gz"):
@@ -3415,14 +3403,14 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
                 compresscheck = "zlib"
             else:
                 return False
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     else:
         infile = RemoveWindowsPath(infile)
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+        checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -3437,7 +3425,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
             return False
-        compresscheck = CheckCompressionType(infile, formatspecs, True)
+        compresscheck = CheckCompressionType(infile, formatspecs, filestart, True)
         if(not compresscheck):
             fextname = os.path.splitext(infile)[1]
             if(fextname == ".gz"):
@@ -3460,22 +3448,22 @@ def ReadInFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, 
                 return False
         if(not compresscheck):
             return False
-        fp = UncompressFile(infile, formatspecs, "rb")
-    return ReadFileDataWithContentToList(fp, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        fp = UncompressFile(infile, formatspecs, "rb", filestart)
+    return ReadFileDataWithContentToList(fp, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
 
 
-def ReadInMultipleFileWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+def ReadInMultipleFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
     if(isinstance(infile, (list, tuple, ))):
         pass
     else:
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile[curfname] = ReadInFileWithContentToList(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        curretfile[curfname] = ReadInFileWithContentToList(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
     return outretval
 
-def ReadInMultipleFilesWithContentToList(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
-    return ReadInMultipleFileWithContentToList(infile, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+def ReadInMultipleFilesWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
+    return ReadInMultipleFileWithContentToList(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
 
 
 def AppendNullByte(indata, delimiter=__file_format_dict__['format_delimiter']):
@@ -3944,9 +3932,9 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
         if not followlink and ftype in data_types:
             with open(fname, "rb") as fpc:
                 shutil.copyfileobj(fpc, fcontents)
-                typechecktest = CheckCompressionType(fcontents, closefp=False)
+                typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
                 fcontents.seek(0, 0)
-                fcencoding = GetFileEncoding(fcontents, False)
+                fcencoding = GetFileEncoding(fcontents, 0, False)
                 if(typechecktest is False and not compresswholefile):
                     fcontents.seek(0, 2)
                     ucfsize = fcontents.tell()
@@ -3991,9 +3979,9 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, filevalues=[], ext
             flstatinfo = os.stat(flinkname)
             with open(flinkname, "rb") as fpc:
                 shutil.copyfileobj(fpc, fcontents)
-                typechecktest = CheckCompressionType(fcontents, closefp=False)
+                typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
                 fcontents.seek(0, 0)
-                fcencoding = GetFileEncoding(fcontents, False)
+                fcencoding = GetFileEncoding(fcontents, 0, False)
                 if(typechecktest is False and not compresswholefile):
                     fcontents.seek(0, 2)
                     ucfsize = fcontents.tell()
@@ -4103,7 +4091,7 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, filevalues=[], extr
         fheaderchecksumtype = curfname[26]
         fcontentchecksumtype = curfname[27]
         fcontents = curfname[28]
-        fencoding = GetFileEncoding(fcontents, False)
+        fencoding = GetFileEncoding(fcontents, 0, False)
         tmpoutlist = [ftype, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression, fcsize,
                       fuid, funame, fgid, fgname, fid, finode, flinkcount, fdev, fdev_minor, fdev_major, fseeknextfile]
         fcontents.seek(0, 0)
@@ -4453,7 +4441,7 @@ def IsSingleDict(variable):
     return True
 
 
-def GetFileEncoding(infile, closefp=True):
+def GetFileEncoding(infile, filestart=0, closefp=True):
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         fp = infile
     else:
@@ -4462,19 +4450,19 @@ def GetFileEncoding(infile, closefp=True):
         except FileNotFoundError:
             return False
     file_encoding = "UTF-8"
-    fp.seek(0, 0)
+    fp.seek(filestart, 0)
     prefp = fp.read(2)
     if(prefp == binascii.unhexlify("fffe")):
         file_encoding = "UTF-16LE"
     elif(prefp == binascii.unhexlify("feff")):
         file_encoding = "UTF-16BE"
-    fp.seek(0, 0)
+    fp.seek(filestart, 0)
     prefp = fp.read(3)
     if(prefp == binascii.unhexlify("efbbbf")):
         file_encoding = "UTF-8"
     elif(prefp == binascii.unhexlify("0efeff")):
         file_encoding = "SCSU"
-    fp.seek(0, 0)
+    fp.seek(filestart, 0)
     prefp = fp.read(4)
     if(prefp == binascii.unhexlify("fffe0000")):
         file_encoding = "UTF-32LE"
@@ -4490,21 +4478,21 @@ def GetFileEncoding(infile, closefp=True):
         file_encoding = "UTF-7"
     elif(prefp == binascii.unhexlify("2b2f762f")):
         file_encoding = "UTF-7"
-    fp.seek(0, 0)
+    fp.seek(filestart, 0)
     if(closefp):
         fp.close()
     return file_encoding
 
 
-def GetFileEncodingFromString(instring, closefp=True):
+def GetFileEncodingFromString(instring, filestart=0, closefp=True):
     try:
         instringsfile = MkTempFile(instring)
     except TypeError:
         instringsfile = MkTempFile(instring.encode("UTF-8"))
-    return GetFileEncoding(instringsfile, closefp)
+    return GetFileEncoding(instringsfile, filestart, closefp)
 
 
-def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp=True):
+def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, filestart=0, closefp=True):
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         fp = infile
     else:
@@ -4513,7 +4501,8 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
         except FileNotFoundError:
             return False
     filetype = False
-    fp.seek(0, 0)
+    curloc = filestart
+    fp.seek(filestart, 0)
     prefp = fp.read(2)
     if(prefp == binascii.unhexlify("1f8b")):
         filetype = "gzip"
@@ -4529,13 +4518,13 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
         filetype = "zlib"
     elif(prefp == binascii.unhexlify("1f9d")):
         filetype = "zcompress"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(3)
     if(prefp == binascii.unhexlify("425a68")):
         filetype = "bzip2"
     elif(prefp == binascii.unhexlify("5d0000")):
         filetype = "lzma"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(4)
     if(prefp == binascii.unhexlify("28b52ffd")):
         filetype = "zstd"
@@ -4547,29 +4536,29 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
         filetype = "zipfile"
     elif(prefp == binascii.unhexlify("504b0708")):
         filetype = "zipfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(5)
     if(prefp == binascii.unhexlify("7573746172")):
         filetype = "tarfile"
     if(prefp == binascii.unhexlify("7573746172")):
         filetype = "tarfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(6)
     if(prefp == binascii.unhexlify("fd377a585a00")):
         filetype = "xz"
     elif(prefp == binascii.unhexlify("377abcaf271c")):
         filetype = "7zipfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(7)
     if(prefp == binascii.unhexlify("526172211a0700")):
         filetype = "rarfile"
     elif(prefp == binascii.unhexlify("2a2a4143452a2a")):
         filetype = "ace"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(7)
     if(prefp == binascii.unhexlify("894c5a4f0d0a1a")):
         filetype = "lzo"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(8)
     if(prefp == binascii.unhexlify("7573746172003030")):
         filetype = "tarfile"
@@ -4577,7 +4566,7 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
         filetype = "tarfile"
     if(prefp == binascii.unhexlify("526172211a070100")):
         filetype = "rarfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     if(IsNestedDict(formatspecs)):
         for key, value in formatspecs.items():
             prefp = fp.read(formatspecs[key]['format_len'])
@@ -4593,7 +4582,7 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
                 if(formstring == inheaderver and formdel == formatspecs[key]['format_delimiter']):
                     filetype = formatspecs[key]['format_magic']
                     continue
-            fp.seek(0, 0)
+            fp.seek(curloc, 0)
     elif(IsSingleDict(formatspecs)):
         prefp = fp.read(formatspecs['format_len'])
         if(prefp == binascii.unhexlify(formatspecs['format_hex'])):
@@ -4608,15 +4597,15 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
             filetype = formatspecs['format_magic']
     else:
         pass
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(9)
     if(prefp == binascii.unhexlify("894c5a4f000d0a1a0a")):
         filetype = "lzo"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(10)
     if(prefp == binascii.unhexlify("7061785f676c6f62616c")):
         filetype = "tarfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     if(filetype == "gzip" or filetype == "bzip2" or filetype == "lzma" or filetype == "zstd" or filetype == "lz4" or filetype == "zlib"):
         if(TarFileCheck(fp)):
             filetype = "tarfile"
@@ -4631,14 +4620,15 @@ def CheckCompressionType(infile, formatspecs=__file_format_multi_dict__, closefp
             return "7zipfile"
         else:
             filetype = False
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     if(closefp):
         fp.close()
     return filetype
 
 
-def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, closefp=True):
-    compresscheck = CheckCompressionType(infile, formatspecs, False)
+def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, filestart=0, closefp=True):
+    compresscheck = CheckCompressionType(infile, formatspecs, filestart, False)
+    curloc = filestart
     if(not compresscheck):
         fextname = os.path.splitext(infile)[1]
         if(fextname == ".gz"):
@@ -4687,7 +4677,7 @@ def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, clos
     elif(py7zr_support and compresscheck == "7zipfile" and py7zr.is_7zfile(infile)):
         return "7zipfile"
     if(hasattr(infile, "read") or hasattr(infile, "write")):
-        fp = UncompressFileAlt(infile, formatspecs)
+        fp = UncompressFileAlt(infile, formatspecs, filestart)
     else:
         try:
             if(compresscheck == "gzip" and compresscheck in compressionsupport):
@@ -4717,10 +4707,11 @@ def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, clos
         except FileNotFoundError:
             return False
     filetype = False
+    fp.seek(filestart, 0)
     prefp = fp.read(5)
     if(prefp == binascii.unhexlify("7573746172")):
         filetype = "tarfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     if(IsNestedDict(formatspecs)):
         for key, value in formatspecs.items():
             prefp = fp.read(formatspecs[key]['format_len'])
@@ -4736,7 +4727,7 @@ def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, clos
                 if(formstring == inheaderver and formdel == formatspecs[key]['format_delimiter']):
                     filetype = formatspecs[key]['format_magic']
                     continue
-            fp.seek(0, 0)
+            fp.seek(curloc, 0)
     elif(IsSingleDict(formatspecs)):
         prefp = fp.read(formatspecs['format_len'])
         if(prefp == binascii.unhexlify(formatspecs['format_hex'])):
@@ -4751,36 +4742,36 @@ def CheckCompressionSubType(infile, formatspecs=__file_format_multi_dict__, clos
             filetype = formatspecs['format_magic']
     else:
         pass
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     prefp = fp.read(10)
     if(prefp == binascii.unhexlify("7061785f676c6f62616c")):
         filetype = "tarfile"
-    fp.seek(0, 0)
+    fp.seek(curloc, 0)
     if(closefp):
         fp.close()
     return filetype
 
 
-def CheckCompressionTypeFromString(instring, formatspecs=__file_format_multi_dict__, closefp=True):
+def CheckCompressionTypeFromString(instring, formatspecs=__file_format_multi_dict__, filestart=0, closefp=True):
     try:
         instringsfile = MkTempFile(instring)
     except TypeError:
         instringsfile = MkTempFile(instring.encode("UTF-8"))
-    return CheckCompressionType(instringsfile, formatspecs, closefp)
+    return CheckCompressionType(instringsfile, formatspecs, filestart, closefp)
 
 
-def CheckCompressionTypeFromBytes(instring, formatspecs=__file_format_multi_dict__, closefp=True):
+def CheckCompressionTypeFromBytes(instring, formatspecs=__file_format_multi_dict__, filestart=0, closefp=True):
     try:
         instringsfile = MkTempFile(instring)
     except TypeError:
         instringsfile = MkTempFile(instring.decode("UTF-8"))
-    return CheckCompressionType(instringsfile, formatspecs, closefp)
+    return CheckCompressionType(instringsfile, formatspecs, filestart, closefp)
 
 
-def UncompressFileAlt(fp, formatspecs=__file_format_multi_dict__):
+def UncompressFileAlt(fp, formatspecs=__file_format_multi_dict__, filestart=0):
     if(not hasattr(fp, "read")):
         return False
-    compresscheck = CheckCompressionType(fp, formatspecs, False)
+    compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
     if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
         formatspecs = formatspecs[compresscheck]
     if(compresscheck == "gzip" and compresscheck in compressionsupport):
@@ -4814,8 +4805,8 @@ def UncompressFileAlt(fp, formatspecs=__file_format_multi_dict__):
     return fp
 
 
-def UncompressFile(infile, formatspecs=__file_format_multi_dict__, mode="rb"):
-    compresscheck = CheckCompressionType(infile, formatspecs, False)
+def UncompressFile(infile, formatspecs=__file_format_multi_dict__, mode="rb", filestart=0):
+    compresscheck = CheckCompressionType(infile, formatspecs, filestart, False)
     if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
         formatspecs = formatspecs[compresscheck]
     if(sys.version_info[0] == 2 and compresscheck):
@@ -4861,8 +4852,8 @@ def UncompressFile(infile, formatspecs=__file_format_multi_dict__, mode="rb"):
     return filefp
 
 
-def UncompressString(infile, formatspecs=__file_format_multi_dict__):
-    compresscheck = CheckCompressionTypeFromString(infile, formatspecs, False)
+def UncompressString(infile, formatspecs=__file_format_multi_dict__, filestart=0):
+    compresscheck = CheckCompressionTypeFromString(infile, formatspecs, filestart, False)
     if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
         formatspecs = formatspecs[compresscheck]
     if(compresscheck == "gzip" and compresscheck in compressionsupport):
@@ -4889,32 +4880,32 @@ def UncompressString(infile, formatspecs=__file_format_multi_dict__):
     return fileuz
 
 
-def UncompressStringAlt(instring, formatspecs=__file_format_multi_dict__):
+def UncompressStringAlt(instring, formatspecs=__file_format_multi_dict__, filestart=0):
     filefp = StringIO()
-    outstring = UncompressString(instring, formatspecs)
+    outstring = UncompressString(instring, formatspecs, filestart)
     filefp.write(outstring)
     filefp.seek(0, 0)
     return filefp
 
-def UncompressStringAltFP(fp, formatspecs=__file_format_multi_dict__):
+def UncompressStringAltFP(fp, formatspecs=__file_format_multi_dict__, filestart=0):
     if(not hasattr(fp, "read")):
         return False
-    prechck = CheckCompressionType(fp, formatspecs, False)
+    prechck = CheckCompressionType(fp, formatspecs, filestart, False)
     if(IsNestedDict(formatspecs) and prechck in formatspecs):
         formatspecs = formatspecs[prechck]
-    fp.seek(0, 0)
+    fp.seek(filestart, 0)
     if(prechck!="zstd"):
-        return UncompressFileAlt(fp, formatspecs)
+        return UncompressFileAlt(fp, formatspecs, filestart)
     filefp = StringIO()
-    fp.seek(0, 0)
-    outstring = UncompressString(fp.read(), formatspecs)
+    fp.seek(filestart, 0)
+    outstring = UncompressString(fp.read(), formatspecs, 0)
     filefp.write(outstring)
     filefp.seek(0, 0)
     return filefp
 
 
-def UncompressBytes(infile, formatspecs=__file_format_multi_dict__):
-    compresscheck = CheckCompressionTypeFromBytes(infile, formatspecs, False)
+def UncompressBytes(infile, formatspecs=__file_format_multi_dict__, filestart=0):
+    compresscheck = CheckCompressionTypeFromBytes(infile, formatspecs, filestart, False)
     if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
         formatspecs = formatspecs[compresscheck]
     if(compresscheck == "gzip" and compresscheck in compressionsupport):
@@ -4939,26 +4930,26 @@ def UncompressBytes(infile, formatspecs=__file_format_multi_dict__):
     return fileuz
 
 
-def UncompressBytesAlt(inbytes, formatspecs=__file_format_multi_dict__):
+def UncompressBytesAlt(inbytes, formatspecs=__file_format_multi_dict__, filestart=0):
     filefp = MkTempFile()
-    outstring = UncompressBytes(inbytes, formatspecs)
+    outstring = UncompressBytes(inbytes, formatspecs, filestart)
     filefp.write(outstring)
     filefp.seek(0, 0)
     return filefp
 
 
-def UncompressBytesAltFP(fp, formatspecs=__file_format_multi_dict__):
+def UncompressBytesAltFP(fp, formatspecs=__file_format_multi_dict__, filestart=0):
     if(not hasattr(fp, "read")):
         return False
-    prechck = CheckCompressionType(fp, formatspecs, False)
+    prechck = CheckCompressionType(fp, formatspecs, filestart, False)
     if(IsNestedDict(formatspecs) and prechck in formatspecs):
         formatspecs = formatspecs[prechck]
-    fp.seek(0, 0)
+    fp.seek(filestart, 0)
     if(prechck!="zstd"):
-        return UncompressFileAlt(fp, formatspecs)
+        return UncompressFileAlt(fp, formatspecs, filestart)
     filefp = MkTempFile()
-    fp.seek(0, 0)
-    outstring = UncompressBytes(fp.read(), formatspecs)
+    fp.seek(filestart, 0)
+    outstring = UncompressBytes(fp.read(), formatspecs, 0)
     filefp.write(outstring)
     filefp.seek(0, 0)
     return filefp
@@ -5407,9 +5398,9 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
         if not followlink and ftype in data_types:
             with open(fname, "rb") as fpc:
                 shutil.copyfileobj(fpc, fcontents)
-                typechecktest = CheckCompressionType(fcontents, closefp=False)
+                typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
                 fcontents.seek(0, 0)
-                fcencoding = GetFileEncoding(fcontents, False)
+                fcencoding = GetFileEncoding(fcontents, 0, False)
                 if(typechecktest is False and not compresswholefile):
                     fcontents.seek(0, 2)
                     ucfsize = fcontents.tell()
@@ -5454,9 +5445,9 @@ def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", comp
             flstatinfo = os.stat(flinkname)
             with open(flinkname, "rb") as fpc:
                 shutil.copyfileobj(fpc, fcontents)
-                typechecktest = CheckCompressionType(fcontents, closefp=False)
+                typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
                 fcontents.seek(0, 0)
-                fcencoding = GetFileEncoding(fcontents, False)
+                fcencoding = GetFileEncoding(fcontents, 0, False)
                 if(typechecktest is False and not compresswholefile):
                     fcontents.seek(0, 2)
                     ucfsize = fcontents.tell()
@@ -5642,7 +5633,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
                 return False
     try:
         if(hasattr(infile, "read") or hasattr(infile, "write")):
-            compresscheck = CheckCompressionType(infile, formatspecs, False)
+            compresscheck = CheckCompressionType(infile, formatspecs, 0, False)
             if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
                 formatspecs = formatspecs[compresscheck]
             if(compresscheck=="zstd"):
@@ -5654,7 +5645,7 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
             else:
                 tarfp = tarfile.open(fileobj=infile, mode="r")
         else:
-            compresscheck = CheckCompressionType(infile, formatspecs, True)
+            compresscheck = CheckCompressionType(infile, formatspecs, 0, True)
             if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
                 formatspecs = formatspecs[compresscheck]
             if(compresscheck=="zstd"):
@@ -5755,9 +5746,9 @@ def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="aut
             fpc = tarfp.extractfile(member)
             shutil.copyfileobj(fpc, fcontents)
             fpc.close()
-            typechecktest = CheckCompressionType(fcontents, closefp=False)
+            typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
             fcontents.seek(0, 0)
-            fcencoding = GetFileEncoding(fcontents, False)
+            fcencoding = GetFileEncoding(fcontents, 0, False)
             if(typechecktest is False and not compresswholefile):
                 fcontents.seek(0, 2)
                 ucfsize = fcontents.tell()
@@ -6052,9 +6043,9 @@ def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="aut
         curcompression = "none"
         if ftype == 0:
             fcontents.write(zipfp.read(member.filename))
-            typechecktest = CheckCompressionType(fcontents, closefp=False)
+            typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
             fcontents.seek(0, 0)
-            fcencoding = GetFileEncoding(fcontents, False)
+            fcencoding = GetFileEncoding(fcontents, 0, False)
             if(typechecktest is False and not compresswholefile):
                 fcontents.seek(0, 2)
                 ucfsize = fcontents.tell()
@@ -6369,9 +6360,9 @@ if(rarfile_support):
             curcompression = "none"
             if ftype == 0:
                 fcontents.write(rarfp.read(member.filename))
-                typechecktest = CheckCompressionType(fcontents, closefp=False)
+                typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
                 fcontents.seek(0, 0)
-                fcencoding = GetFileEncoding(fcontents, False)
+                fcencoding = GetFileEncoding(fcontents, 0, False)
                 if(typechecktest is False and not compresswholefile):
                     fcontents.seek(0, 2)
                     ucfsize = fcontents.tell()
@@ -6528,7 +6519,7 @@ if(py7zr_support):
             return False
         szpfp = py7zr.SevenZipFile(infile, mode="r")
         file_content = szpfp.readall()
-        #sztest = szpfp.testzip();
+        #sztest = szpfp.testzip()
         sztestalt = szpfp.test()
         if(sztestalt):
             VerbosePrintOut("Bad file found!")
@@ -6622,9 +6613,9 @@ if(py7zr_support):
                 fcontents.write(file_content[member.filename].read())
                 fsize = format(fcontents.tell(), 'x').lower()
                 fcontents.seek(0, 0)
-                typechecktest = CheckCompressionType(fcontents, closefp=False)
+                typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
                 fcontents.seek(0, 0)
-                fcencoding = GetFileEncoding(fcontents, False)
+                fcencoding = GetFileEncoding(fcontents, 0, False)
                 file_content[member.filename].close()
                 if(typechecktest is False and not compresswholefile):
                     fcontents.seek(0, 2)
@@ -6717,7 +6708,7 @@ if(py7zr_support):
 
 
 def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     if(verbose):
@@ -6737,654 +6728,20 @@ def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto
     return False
 
 
-def ArchiveFileSeekToFileNum(infile, fmttype="auto", seekto=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
-    if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
-        formatspecs = formatspecs[fmttype]
-    elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
-        fmttype = "auto"
-    curloc = 0
-    if(hasattr(infile, "read") or hasattr(infile, "write")):
-        curloc = infile.tell()
-        fp = infile
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
-        if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-            formatspecs = formatspecs[checkcompressfile]
-        if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
-            return False
-        elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
-            return False
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    elif(infile == "-"):
-        fp = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, fp)
-        else:
-            shutil.copyfileobj(sys.stdin, fp)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
-        if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-            formatspecs = formatspecs[checkcompressfile]
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = MkTempFile()
-        fp.write(infile)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
-        if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
-            formatspecs = formatspecs[compresscheck]
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    elif(re.findall(__download_proto_support__, infile)):
-        fp = download_file_from_internet_file(infile)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
-        if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
-            formatspecs = formatspecs[compresscheck]
-        fp.seek(0, 0)
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    else:
-        infile = RemoveWindowsPath(infile)
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
-        if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-            formatspecs = formatspecs[checkcompressfile]
-        if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
-            return False
-        elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
-            return False
-        compresscheck = CheckCompressionType(infile, formatspecs, True)
-        if(not compresscheck):
-            fextname = os.path.splitext(infile)[1]
-            if(fextname == ".gz"):
-                compresscheck = "gzip"
-            elif(fextname == ".bz2"):
-                compresscheck = "bzip2"
-            elif(fextname == ".zst"):
-                compresscheck = "zstd"
-            elif(fextname == ".lz4" or fextname == ".clz4"):
-                compresscheck = "lz4"
-            elif(fextname == ".lzo" or fextname == ".lzop"):
-                compresscheck = "lzo"
-            elif(fextname == ".lzma"):
-                compresscheck = "lzma"
-            elif(fextname == ".xz"):
-                compresscheck = "xz"
-            elif(fextname == ".zz" or fextname == ".zl" or fextname == ".zlib"):
-                compresscheck = "zlib"
-            else:
-                return False
-        if(not compresscheck):
-            return False
-        fp = UncompressFile(infile, formatspecs, "rb")
-    try:
-        fp.seek(0, 2);
-    except OSError:
-        SeekToEndOfFile(fp);
-    except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
-    CatSizeEnd = CatSize;
-    fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
-    if(IsNestedDict(formatspecs)):
-        compresschecking = CheckCompressionType(fp, formatspecs, False)
-        if(compresschecking not in formatspecs):
-            fp.seek(0, 0)
-            return False
-        else:
-            formatspecs = formatspecs[compresschecking]
-            fp.seek(0, 0)
-    inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
-    formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
-    formdelszie = len(formatspecs['format_delimiter'])
-    formdel = fp.read(formdelszie).decode("UTF-8")
-    if(formstring != formatspecs['format_magic']+inheaderver):
-        return False
-    if(formdel != formatspecs['format_delimiter']):
-        return False
-    if(formatspecs['new_style']):
-        inheader = ReadFileHeaderDataBySize(
-            fp, formatspecs['format_delimiter'])
-    else:
-        inheader = ReadFileHeaderDataWoSize(
-            fp, formatspecs['format_delimiter'])
-    fnumextrafieldsize = int(inheader[5], 16)
-    fnumextrafields = int(inheader[6], 16)
-    fextrafieldslist = []
-    extrastart = 7
-    extraend = extrastart + fnumextrafields
-    while(extrastart < extraend):
-        fextrafieldslist.append(inheader[extrastart])
-        extrastart = extrastart + 1
-    if(fnumextrafields==1):
-        try:
-            fextrafieldslist = json.loads(base64.b64decode(fextrafieldslist[0]).decode("UTF-8"))
-            fnumextrafields = len(fextrafieldslist)
-        except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
-            try:
-                fextrafieldslist = json.loads(fextrafieldslist[0])
-            except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
-                pass
-    if(curloc > 0):
-        fp.seek(curloc, 0)
-    formversion = re.findall("([\\d]+)", formstring)
-    fheadsize = int(inheader[0], 16)
-    fnumfields = int(inheader[1], 16)
-    fhencoding = inheader[2]
-    fostype = inheader[3]
-    fnumfiles = int(inheader[4], 16)
-    fprechecksumtype = inheader[-2]
-    fprechecksum = inheader[-1]
-    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
-    newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs)
-    if(not headercheck and not skipchecksum):
-        VerbosePrintOut(
-            "File Header Checksum Error with file at offset " + str(0))
-        VerbosePrintOut("'" + fprechecksum + "' != " +
-                        "'" + newfcs + "'")
-        return False
-    formversions = re.search('(.*?)(\\d+)', formstring).groups()
-    fcompresstype = compresscheck
-    if(fcompresstype==formatspecs['format_magic']):
-        fcompresstype = ""
-    outlist = {'fnumfiles': fnumfiles, 'fformat': formversions[0], 'fcompression': fcompresstype, 'fencoding': fhencoding, 'fversion': formversions[1], 'fostype': fostype, 'fheadersize': fheadsize, 'fsize': CatSizeEnd, 'fnumfields': fnumfields + 2, 'fformatspecs': formatspecs, 'fchecksumtype': fprechecksumtype, 'fheaderchecksum': fprechecksum, 'frawheader': [formstring] + inheader, 'fextrafields': fnumextrafields, 'fextrafieldsize': fnumextrafieldsize, 'fextradata': fextrafieldslist, 'ffilelist': []}
-    if(seekto >= fnumfiles):
-        seekto = fnumfiles - 1
-    if(seekto < 0):
-        seekto = 0
-    if(seekto >= 0):
-        il = -1
-        while (fp.tell() < CatSizeEnd) if seektoend else (il < seekto):
-            prefhstart = fp.tell()
-            if(formatspecs['new_style']):
-                preheaderdata = ReadFileHeaderDataBySize(
-                    fp, formatspecs['format_delimiter'])
-            else:
-                preheaderdata = ReadFileHeaderDataWoSize(
-                    fp, formatspecs['format_delimiter'])
-            if(len(preheaderdata) == 0):
-                break
-            prefheadsize = int(preheaderdata[0], 16)
-            prefnumfields = int(preheaderdata[1], 16)
-            preftype = int(preheaderdata[2], 16)
-            prefencoding = preheaderdata[3]
-            prefcencoding = preheaderdata[4]
-            if(re.findall("^[.|/]", preheaderdata[5])):
-                prefname = preheaderdata[5]
-            else:
-                prefname = "./"+preheaderdata[5]
-            prefbasedir = os.path.dirname(prefname)
-            preflinkname = preheaderdata[6]
-            prefsize = int(preheaderdata[7], 16)
-            prefatime = int(preheaderdata[8], 16)
-            prefmtime = int(preheaderdata[9], 16)
-            prefctime = int(preheaderdata[10], 16)
-            prefbtime = int(preheaderdata[11], 16)
-            prefmode = int(preheaderdata[12], 16)
-            prefchmode = stat.S_IMODE(prefmode)
-            preftypemod = stat.S_IFMT(prefmode)
-            prefwinattributes = int(preheaderdata[13], 16)
-            prefcompression = preheaderdata[14]
-            prefcsize = int(preheaderdata[15], 16)
-            prefuid = int(preheaderdata[16], 16)
-            prefuname = preheaderdata[17]
-            prefgid = int(preheaderdata[18], 16)
-            prefgname = preheaderdata[19]
-            fid = int(preheaderdata[20], 16)
-            finode = int(preheaderdata[21], 16)
-            flinkcount = int(preheaderdata[22], 16)
-            prefdev = int(preheaderdata[23], 16)
-            prefdev_minor = int(preheaderdata[24], 16)
-            prefdev_major = int(preheaderdata[25], 16)
-            prefseeknextfile = preheaderdata[26]
-            prefjsontype = preheaderdata[27]
-            prefjsonlen = int(preheaderdata[28], 16)
-            prefjsonsize = int(preheaderdata[29], 16)
-            prefjsonchecksumtype = preheaderdata[30]
-            prefjsonchecksum = preheaderdata[31]
-            prefhend = fp.tell() - 1
-            prefjstart = fp.tell()
-            prefjoutfprejsoncontent = fp.read(prefjsonsize).decode("UTF-8")
-            prefjend = fp.tell()
-            fp.seek(len(formatspecs['format_delimiter']), 1)
-            prejsonfcs = GetFileChecksum(prefjoutfprejsoncontent, prefjsonchecksumtype, True, formatspecs)
-            prefextrasize = int(preheaderdata[32], 16)
-            prefextrafields = int(preheaderdata[33], 16)
-            extrastart = 34
-            extraend = extrastart + prefextrafields
-            prefcs = preheaderdata[-2].lower()
-            prenewfcs = preheaderdata[-1].lower()
-            prenewfcs = GetHeaderChecksum(
-                preheaderdata[:-2], preheaderdata[-4].lower(), True, formatspecs)
-            if(prefcs != prenewfcs and not skipchecksum):
-                VerbosePrintOut("File Header Checksum Error with file " +
-                                prefname + " at offset " + str(prefhstart))
-                VerbosePrintOut("'" + prefcs + "' != " +
-                                "'" + prenewfcs + "'")
-                return False
-            if(prefjsonsize > 0):
-                if(prejsonfcs != prefjsonchecksum and not skipchecksum):
-                    VerbosePrintOut("File JSON Data Checksum Error with file " +
-                                    prefname + " at offset " + str(prefjstart))
-                    VerbosePrintOut("'" + prefjsonchecksum + "' != " + "'" + prejsonfcs + "'")
-                    return False
-            prefcontentstart = fp.tell()
-            prefcontents = ""
-            pyhascontents = False
-            if(prefsize > 0):
-                if(prefcompression):
-                    prefcontents = fp.read(prefsize)
-                else:
-                    prefcontents = fp.read(prefcsize)
-                prenewfccs = GetFileChecksum(
-                    prefcontents, preheaderdata[-3].lower(), False, formatspecs)
-                pyhascontents = True
-                if(prefccs != prenewfccs and not skipchecksum):
-                    VerbosePrintOut("File Content Checksum Error with file " +
-                                    prefname + " at offset " + str(prefcontentstart))
-                    VerbosePrintOut("'" + prefccs +
-                                    "' != " + "'" + prenewfccs + "'")
-                    return False
-            if(re.findall("^\\+([0-9]+)", prefseeknextfile)):
-                fseeknextasnum = int(prefseeknextfile.replace("+", ""))
-                if(abs(fseeknextasnum) == 0):
-                    pass
-                fp.seek(fseeknextasnum, 1)
-            elif(re.findall("^\\-([0-9]+)", prefseeknextfile)):
-                fseeknextasnum = int(prefseeknextfile)
-                if(abs(fseeknextasnum) == 0):
-                    pass
-                fp.seek(fseeknextasnum, 1)
-            elif(re.findall("^([0-9]+)", prefseeknextfile)):
-                fseeknextasnum = int(prefseeknextfile)
-                if(abs(fseeknextasnum) == 0):
-                    pass
-                fp.seek(fseeknextasnum, 0)
-            else:
-                return False
-            il = il + 1
-    fp.seek(seekstart, 0)
-    fileidnum = il
-    outfheadsize = int(preheaderdata[0], 16)
-    outfnumfields = int(preheaderdata[1], 16)
-    outftype = int(preheaderdata[2], 16)
-    outfencoding = preheaderdata[3]
-    if(re.findall("^[.|/]", preheaderdata[4])):
-        outfname = preheaderdata[4]
-    else:
-        outfname = "./"+preheaderdata[4]
-    outflinkname = preheaderdata[5]
-    outfsize = int(preheaderdata[6], 16)
-    outfbasedir = os.path.dirname(outfname)
-    outlist = {'fid': fileidnum, 'foffset': fp.tell(), 'ftype': outftype, 'fencoding': outfencoding, 'fname': outfname,
-               'fbasedir': outfbasedir, 'flinkname': outflinkname, 'fsize': outfsize}
-    if(returnfp):
-        outlist.update({'fp': fp})
-    else:
-        fp.close()
-    return outlist
-
-
-def ArchiveFileSeekToFileName(infile, fmttype="auto", seekfile=None, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
-    if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
-        formatspecs = formatspecs[fmttype]
-    elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
-        fmttype = "auto"
-    curloc = 0
-    if(hasattr(infile, "read") or hasattr(infile, "write")):
-        curloc = infile.tell()
-        fp = infile
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
-        if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-            formatspecs = formatspecs[checkcompressfile]
-        if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
-            return False
-        elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
-            return False
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    elif(infile == "-"):
-        fp = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, fp)
-        else:
-            shutil.copyfileobj(sys.stdin, fp)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
-        if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-            formatspecs = formatspecs[checkcompressfile]
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
-        fp = MkTempFile()
-        fp.write(infile)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
-        if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
-            formatspecs = formatspecs[compresscheck]
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    elif(re.findall(__download_proto_support__, infile)):
-        fp = download_file_from_internet_file(infile)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
-        if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
-            formatspecs = formatspecs[compresscheck]
-        fp.seek(0, 0)
-        if(not fp):
-            return False
-        fp.seek(0, 0)
-    else:
-        infile = RemoveWindowsPath(infile)
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
-        if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-            formatspecs = formatspecs[checkcompressfile]
-        if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-            return TarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
-            return ZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
-            return RarFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
-            return SevenZipFileToArray(infile, 0, 0, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
-        elif(IsSingleDict(formatspecs) and checkcompressfile != formatspecs['format_magic']):
-            return False
-        elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
-            return False
-        compresscheck = CheckCompressionType(infile, formatspecs, True)
-        if(not compresscheck):
-            fextname = os.path.splitext(infile)[1]
-            if(fextname == ".gz"):
-                compresscheck = "gzip"
-            elif(fextname == ".bz2"):
-                compresscheck = "bzip2"
-            elif(fextname == ".zst"):
-                compresscheck = "zstd"
-            elif(fextname == ".lz4" or fextname == ".clz4"):
-                compresscheck = "lz4"
-            elif(fextname == ".lzo" or fextname == ".lzop"):
-                compresscheck = "lzo"
-            elif(fextname == ".lzma"):
-                compresscheck = "lzma"
-            elif(fextname == ".xz"):
-                compresscheck = "xz"
-            elif(fextname == ".zz" or fextname == ".zl" or fextname == ".zlib"):
-                compresscheck = "zlib"
-            else:
-                return False
-        if(not compresscheck):
-            return False
-        fp = UncompressFile(infile, formatspecs, "rb")
-    try:
-        fp.seek(0, 2);
-    except OSError:
-        SeekToEndOfFile(fp);
-    except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
-    CatSizeEnd = CatSize;
-    fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
-    if(IsNestedDict(formatspecs)):
-        compresschecking = CheckCompressionType(fp, formatspecs, False)
-        if(compresschecking not in formatspecs):
-            return False
-        else:
-            formatspecs = formatspecs[compresschecking]
-            fp.seek(0, 0)
-    inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
-    formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
-    formdelszie = len(formatspecs['format_delimiter'])
-    formdel = fp.read(formdelszie).decode("UTF-8")
-    if(formstring != formatspecs['format_magic']+inheaderver):
-        return False
-    if(formdel != formatspecs['format_delimiter']):
-        return False
-    if(formatspecs['new_style']):
-        inheader = ReadFileHeaderDataBySize(
-            fp, formatspecs['format_delimiter'])
-    else:
-        inheader = ReadFileHeaderDataWoSize(
-            fp, formatspecs['format_delimiter'])
-    fnumextrafieldsize = int(inheader[5], 16)
-    fnumextrafields = int(inheader[6], 16)
-    fextrafieldslist = []
-    extrastart = 7
-    extraend = extrastart + fnumextrafields
-    while(extrastart < extraend):
-        fextrafieldslist.append(inheader[extrastart])
-        extrastart = extrastart + 1
-    if(fnumextrafields==1):
-        try:
-            fextrafieldslist = json.loads(base64.b64decode(fextrafieldslist[0]).decode("UTF-8"))
-            fnumextrafields = len(fextrafieldslist)
-        except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
-            try:
-                fextrafieldslist = json.loads(fextrafieldslist[0])
-            except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
-                pass
-    if(curloc > 0):
-        fp.seek(curloc, 0)
-    formversion = re.findall("([\\d]+)", formstring)
-    fheadsize = int(inheader[0], 16)
-    fnumfields = int(inheader[1], 16)
-    fhencoding = inheader[2]
-    fostype = inheader[3]
-    fnumfiles = int(inheader[4], 16)
-    fprechecksumtype = inheader[-2]
-    fprechecksum = inheader[-1]
-    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
-    newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs)
-    if(not headercheck and not skipchecksum):
-        VerbosePrintOut(
-            "File Header Checksum Error with file at offset " + str(0))
-        VerbosePrintOut("'" + fprechecksum + "' != " +
-                        "'" + newfcs + "'")
-        return False
-    formversions = re.search('(.*?)(\\d+)', formstring).groups()
-    fcompresstype = compresscheck
-    if(fcompresstype==formatspecs['format_magic']):
-        fcompresstype = ""
-    outlist = {'fnumfiles': fnumfiles, 'fformat': formversions[0], 'fcompression': fcompresstype, 'fencoding': fhencoding, 'fversion': formversions[1], 'fostype': fostype, 'fheadersize': fheadsize, 'fsize': CatSizeEnd, 'fnumfields': fnumfields + 2, 'fformatspecs': formatspecs, 'fchecksumtype': fprechecksumtype, 'fheaderchecksum': fprechecksum, 'frawheader': [formstring] + inheader, 'fextrafields': fnumextrafields, 'fextrafieldsize': fnumextrafieldsize, 'fextradata': fextrafieldslist, 'ffilelist': []}
-    seekto = fnumfiles - 1
-    filefound = False
-    if(seekto >= 0):
-        il = -1
-        while (fp.tell() < CatSizeEnd) if seektoend else (il < seekto):
-            prefhstart = fp.tell()
-            if(formatspecs['new_style']):
-                preheaderdata = ReadFileHeaderDataBySize(
-                    fp, formatspecs['format_delimiter'])
-            else:
-                preheaderdata = ReadFileHeaderDataWoSize(
-                    fp, formatspecs['format_delimiter'])
-            if(len(preheaderdata) == 0):
-                break
-            prefheadsize = int(preheaderdata[0], 16)
-            prefnumfields = int(preheaderdata[1], 16)
-            preftype = int(preheaderdata[2], 16)
-            prefencoding = preheaderdata[3]
-            prefencoding = preheaderdata[4]
-            if(re.findall("^[.|/]", preheaderdata[5])):
-                prefname = preheaderdata[5]
-            else:
-                prefname = "./"+preheaderdata[5]
-            prefbasedir = os.path.dirname(prefname)
-            preflinkname = preheaderdata[6]
-            prefsize = int(preheaderdata[7], 16)
-            prefatime = int(preheaderdata[8], 16)
-            prefmtime = int(preheaderdata[9], 16)
-            prefctime = int(preheaderdata[10], 16)
-            prefbtime = int(preheaderdata[11], 16)
-            prefmode = int(preheaderdata[12], 16)
-            prefchmode = stat.S_IMODE(prefmode)
-            preftypemod = stat.S_IFMT(prefmode)
-            prefwinattributes = int(preheaderdata[13], 16)
-            prefcompression = preheaderdata[14]
-            prefcsize = int(preheaderdata[15], 16)
-            prefuid = int(preheaderdata[16], 16)
-            prefuname = preheaderdata[17]
-            prefgid = int(preheaderdata[18], 16)
-            prefgname = preheaderdata[19]
-            fid = int(preheaderdata[20], 16)
-            finode = int(preheaderdata[21], 16)
-            flinkcount = int(preheaderdata[22], 16)
-            prefdev = int(preheaderdata[23], 16)
-            prefdev_minor = int(preheaderdata[24], 16)
-            prefdev_major = int(preheaderdata[25], 16)
-            prefseeknextfile = preheaderdata[26]
-            prefjsontype = preheaderdata[27]
-            prefjsonlen = int(preheaderdata[28], 16)
-            prefjsonsize = int(preheaderdata[29], 16)
-            prefjsonchecksumtype = preheaderdata[30]
-            prefjsonchecksum = preheaderdata[31]
-            prefhend = fp.tell() - 1
-            prefjstart = fp.tell()
-            prefjoutfprejsoncontent = fp.read(prefjsonsize).decode("UTF-8")
-            prefjend = fp.tell()
-            fp.seek(len(formatspecs['format_delimiter']), 1)
-            prejsonfcs = GetFileChecksum(prefjoutfprejsoncontent, prefjsonchecksumtype, True, formatspecs)
-            prefextrasize = int(preheaderdata[32], 16)
-            prefextrafields = int(preheaderdata[33], 16)
-            extrastart = 34
-            extraend = extrastart + prefextrafields
-            prefcs = preheaderdata[-2].lower()
-            prenewfcs = preheaderdata[-1].lower()
-            prenewfcs = GetHeaderChecksum(
-                preheaderdata[:-2], preheaderdata[-4].lower(), True, formatspecs)
-            if(prefcs != prenewfcs and not skipchecksum):
-                VerbosePrintOut("File Header Checksum Error with file " +
-                                prefname + " at offset " + str(prefhstart))
-                VerbosePrintOut("'" + prefcs + "' != " +
-                                "'" + prenewfcs + "'")
-                return False
-            if(prefjsonsize > 0):
-                if(prejsonfcs != prefjsonchecksum and not skipchecksum):
-                    VerbosePrintOut("File JSON Data Checksum Error with file " +
-                                    prefname + " at offset " + str(prefjstart))
-                    VerbosePrintOut("'" + prefjsonchecksum + "' != " + "'" + prejsonfcs + "'")
-                    return False
-            prefcontentstart = fp.tell()
-            prefcontents = ""
-            pyhascontents = False
-            if(prefsize > 0):
-                if(prefcompression):
-                    prefcontents = fp.read(prefsize)
-                else:
-                    prefcontents = fp.read(prefcsize)
-                prenewfccs = GetFileChecksum(
-                    prefcontents, preheaderdata[-3].lower(), False, formatspecs)
-                pyhascontents = True
-                if(prefccs != prenewfccs and not skipchecksum):
-                    VerbosePrintOut("File Content Checksum Error with file " +
-                                    prefname + " at offset " + str(prefcontentstart))
-                    VerbosePrintOut("'" + prefccs +
-                                    "' != " + "'" + prenewfccs + "'")
-                    return False
-            if(re.findall("^\\+([0-9]+)", prefseeknextfile)):
-                fseeknextasnum = int(prefseeknextfile.replace("+", ""))
-                if(abs(fseeknextasnum) == 0):
-                    pass
-                fp.seek(fseeknextasnum, 1)
-            elif(re.findall("^\\-([0-9]+)", prefseeknextfile)):
-                fseeknextasnum = int(prefseeknextfile)
-                if(abs(fseeknextasnum) == 0):
-                    pass
-                fp.seek(fseeknextasnum, 1)
-            elif(re.findall("^([0-9]+)", prefseeknextfile)):
-                fseeknextasnum = int(prefseeknextfile)
-                if(abs(fseeknextasnum) == 0):
-                    pass
-                fp.seek(fseeknextasnum, 0)
-            else:
-                return False
-            il = il + 1
-            filefound = False
-            if(prefname == seekfile):
-                filefound = True
-                break
-    fp.seek(seekstart, 0)
-    fileidnum = il
-    outfheadsize = int(preheaderdata[0], 16)
-    outfnumfields = int(preheaderdata[1], 16)
-    outftype = int(preheaderdata[2], 16)
-    outfencoding = preheaderdata[3]
-    if(re.findall("^[.|/]", preheaderdata[4])):
-        outfname = preheaderdata[4]
-    else:
-        outfname = "./"+preheaderdata[4]
-    outflinkname = preheaderdata[5]
-    outfsize = int(preheaderdata[6], 16)
-    outfbasedir = os.path.dirname(outfname)
-    if(filefound):
-        outlist = {'fid': fileidnum, 'foffset': fp.tell(), 'ftype': outftype, 'fencoding': outfencoding, 'fname': outfname,
-                   'fbasedir': outfbasedir, 'flinkname': outflinkname, 'fsize': outfsize}
-    else:
-        return False
-    if(returnfp):
-        outlist.update({'fp': fp})
-    else:
-        fp.close()
-    return outlist
-
-
-def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
+def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
         fmttype = "auto"
-    curloc = 0
+    curloc = filestart
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         curloc = infile.tell()
         fp = infile
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -7401,45 +6758,45 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
             return False
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(infile == "-"):
         fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
             shutil.copyfileobj(sys.stdin, fp)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
         fp = MkTempFile()
         fp.write(infile)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        compresscheck = CheckCompressionType(fp, formatspecs, 0, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        compresscheck = CheckCompressionType(fp, formatspecs, 0, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     else:
         infile = RemoveWindowsPath(infile)
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+        checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -7454,7 +6811,7 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
             return False
-        compresscheck = CheckCompressionType(infile, formatspecs, True)
+        compresscheck = CheckCompressionType(infile, formatspecs, filestart, True)
         if(not compresscheck):
             fextname = os.path.splitext(infile)[1]
             if(fextname == ".gz"):
@@ -7477,25 +6834,23 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
                 return False
         if(not compresscheck):
             return False
-        fp = UncompressFile(infile, formatspecs, "rb")
+        fp = UncompressFile(infile, formatspecs, "rb", filestart)
     try:
-        fp.seek(0, 2);
+        fp.seek(0, 2)
     except OSError:
-        SeekToEndOfFile(fp);
+        SeekToEndOfFile(fp)
     except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
-    CatSizeEnd = CatSize;
+        SeekToEndOfFile(fp)
+    CatSize = fp.tell()
+    CatSizeEnd = CatSize
     fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
     if(IsNestedDict(formatspecs)):
-        compresschecking = CheckCompressionType(fp, formatspecs, False)
+        compresschecking = CheckCompressionType(fp, formatspecs, filestart, False)
         if(compresschecking not in formatspecs):
             return False
         else:
             formatspecs = formatspecs[compresschecking]
-            fp.seek(0, 0)
+            fp.seek(filestart, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
@@ -7514,8 +6869,6 @@ def ArchiveFileValidate(infile, fmttype="auto", formatspecs=__file_format_multi_
     fnumextrafields = int(inheader[6], 16)
     extrastart = 7
     extraend = extrastart + fnumextrafields
-    if(curloc > 0):
-        fp.seek(curloc, 0)
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
@@ -7725,18 +7078,18 @@ def ArchiveFileValidateMultiple(infile, fmttype="auto", formatspecs=__file_forma
 def ArchiveFileValidateMultipleFiles(infile, fmttype="auto", formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     return ArchiveFileValidateMultiple(infile, fmttype, formatspecs, verbose, returnfp)
 
-def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+def ArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
         fmttype = "auto"
-    curloc = 0
+    curloc = filestart
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         curloc = infile.tell()
         fp = infile
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -7753,45 +7106,45 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
             return False
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(infile == "-"):
         fp = MkTempFile()
         if(hasattr(sys.stdin, "buffer")):
             shutil.copyfileobj(sys.stdin.buffer, fp)
         else:
             shutil.copyfileobj(sys.stdin, fp)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        checkcompressfile = CheckCompressionSubType(fp, formatspecs, True)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
         fp = MkTempFile()
         fp.write(infile)
-        fp.seek(0, 0)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp.seek(filestart, 0)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
-        fp = UncompressFileAlt(fp, formatspecs)
-        compresscheck = CheckCompressionType(fp, formatspecs, False)
+        fp = UncompressFileAlt(fp, formatspecs, filestart)
+        compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             formatspecs = formatspecs[compresscheck]
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
         if(not fp):
             return False
-        fp.seek(0, 0)
+        fp.seek(filestart, 0)
     else:
         infile = RemoveWindowsPath(infile)
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+        checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -7806,7 +7159,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
             return False
         elif(IsNestedDict(formatspecs) and checkcompressfile not in formatspecs):
             return False
-        compresscheck = CheckCompressionType(infile, formatspecs, True)
+        compresscheck = CheckCompressionType(infile, formatspecs, filestart, True)
         if(not compresscheck):
             fextname = os.path.splitext(infile)[1]
             if(fextname == ".gz"):
@@ -7829,25 +7182,23 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
                 return False
         if(not compresscheck):
             return False
-        fp = UncompressFile(infile, formatspecs, "rb")
+        fp = UncompressFile(infile, formatspecs, "rb", filestart)
     try:
-        fp.seek(0, 2);
+        fp.seek(0, 2)
     except OSError:
-        SeekToEndOfFile(fp);
+        SeekToEndOfFile(fp)
     except ValueError:
-        SeekToEndOfFile(fp);
-    CatSize = fp.tell();
+        SeekToEndOfFile(fp)
+    CatSize = fp.tell()
     CatSizeEnd = CatSize;
     fp.seek(curloc, 0)
-    if(curloc > 0):
-        fp.seek(0, 0)
     if(IsNestedDict(formatspecs)):
-        compresschecking = CheckCompressionType(fp, formatspecs, False)
+        compresschecking = CheckCompressionType(fp, formatspecs, filestart, False)
         if(compresschecking not in formatspecs):
             return False
         else:
             formatspecs = formatspecs[compresschecking]
-            fp.seek(0, 0)
+            fp.seek(filestart, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
@@ -7879,8 +7230,6 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
                 fextrafieldslist = json.loads(fextrafieldslist[0])
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 pass
-    if(curloc > 0):
-        fp.seek(curloc, 0)
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
@@ -8145,7 +7494,7 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
                 outfcontents.seek(0, 0)
                 if(uncompress):
                     cfcontents = UncompressFileAlt(
-                        outfcontents, formatspecs)
+                        outfcontents, formatspecs, 0)
                     cfcontents.seek(0, 0)
                     outfcontents = MkTempFile()
                     shutil.copyfileobj(cfcontents, outfcontents)
@@ -8190,49 +7539,49 @@ def ArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=
     return outlist
 
 
-def MultipleArchiveFileToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+def MultipleArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
     if(isinstance(infile, (list, tuple, ))):
         pass
     else:
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        curretfile[curfname] = ArchiveFileToArray(curfname, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+        curretfile[curfname] = ArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
     return outretval
 
-def MultipleArchiveFilesToArray(infile, fmttype="auto", seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
-    return MultipleArchiveFileToArray(infile, fmttype, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+def MultipleArchiveFilesToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+    return MultipleArchiveFileToArray(infile, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
 
 
-def ArchiveFileStringToArray(instr, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+def ArchiveFileStringToArray(instr, filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     fp = MkTempFile(instr)
-    listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
-    return listarchivefiles
+    listarrayfiles = ArchiveFileToArray(fp, "auto", filestart, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
+    return listarrayfiles
 
 
 def TarFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False, returnfp=False):
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     fp = MkTempFile()
     fp = PackArchiveFileFromTarFile(
         infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
-    listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
-    return listarchivefiles
+    listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
+    return listarrayfiles
 
 
 def ZipFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False, returnfp=False):
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     fp = MkTempFile()
     fp = PackArchiveFileFromZipFile(
         infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
-    listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
-    return listarchivefiles
+    listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
+    return listarrayfiles
 
 
 if(not rarfile_support):
@@ -8241,14 +7590,14 @@ if(not rarfile_support):
 
 if(rarfile_support):
     def RarFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False, returnfp=False):
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+        checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         fp = MkTempFile()
         fp = PackArchiveFileFromRarFile(
             infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
-        listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
-        return listarchivefiles
+        listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
+        return listarrayfiles
 
 if(not py7zr_support):
     def SevenZipFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False, returnfp=False):
@@ -8256,18 +7605,18 @@ if(not py7zr_support):
 
 if(py7zr_support):
     def SevenZipFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_dict__, seektoend=False, returnfp=False):
-        checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+        checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
         if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
             formatspecs = formatspecs[checkcompressfile]
         fp = MkTempFile()
         fp = PackArchiveFileFromSevenZipFile(
             infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
-        listarchivefiles = ArchiveFileToArray(fp, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
-        return listarchivefiles
+        listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
+        return listarrayfiles
 
 
-def InFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+def InFileToArray(infile, filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
+    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -8279,78 +7628,78 @@ def InFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile=
     elif(py7zr_support and checkcompressfile == "7zipfile" and py7zr.is_7zfile(infile)):
         return SevenZipFileToArray(infile, seekstart, seekend, listonly, contentasfile, skipchecksum, formatspecs, seektoend, returnfp)
     elif(checkcompressfile == formatspecs['format_magic']):
-        return ArchiveFileToArray(infile, "auto", seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
+        return ArchiveFileToArray(infile, "auto", filestart, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
     else:
         return False
     return False
 
 
-def ListDirToArray(infiles, dirlistfromtxt=False, fmttype=__file_format_default__, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, listonly=False, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, seektoend=False, returnfp=False):
+def ListDirToArray(infiles, dirlistfromtxt=False, fmttype=__file_format_default__, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, filestart=0, seekstart=0, seekend=0, listonly=False, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, seektoend=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, followlink, checksumtype, extradata, formatspecs, verbose, True)
-    listarchivefiles = ArchiveFileToArray(outarray, "auto", seekstart, seekend, listonly, True, skipchecksum, formatspecs, seektoend, returnfp)
-    return listarchivefiles
+    listarrayfiles = ArchiveFileToArray(outarray, "auto", filestart, seekstart, seekend, listonly, True, skipchecksum, formatspecs, seektoend, returnfp)
+    return listarrayfiles
 
 
 def ArchiveFileArrayToArrayIndex(inarray, returnfp=False):
     if(isinstance(inarray, dict)):
-        listarchivefiles = inarray
+        listarrayfiles = inarray
     else:
         return False
-    if(not listarchivefiles):
+    if(not listarrayfiles):
         return False
-    outarray = {'list': listarchivefiles, 'filetoid': {}, 'idtofile': {}, 'filetypes': {'directories': {'filetoid': {}, 'idtofile': {}}, 'files': {'filetoid': {}, 'idtofile': {}}, 'links': {'filetoid': {}, 'idtofile': {}}, 'symlinks': {'filetoid': {
+    outarray = {'list': listarrayfiles, 'filetoid': {}, 'idtofile': {}, 'filetypes': {'directories': {'filetoid': {}, 'idtofile': {}}, 'files': {'filetoid': {}, 'idtofile': {}}, 'links': {'filetoid': {}, 'idtofile': {}}, 'symlinks': {'filetoid': {
     }, 'idtofile': {}}, 'hardlinks': {'filetoid': {}, 'idtofile': {}}, 'character': {'filetoid': {}, 'idtofile': {}}, 'block': {'filetoid': {}, 'idtofile': {}}, 'fifo': {'filetoid': {}, 'idtofile': {}}, 'devices': {'filetoid': {}, 'idtofile': {}}}}
     if(returnfp):
-        outarray.update({'fp': listarchivefiles['fp']})
-    lenlist = len(listarchivefiles['ffilelist'])
+        outarray.update({'fp': listarrayfiles['fp']})
+    lenlist = len(listarrayfiles['ffilelist'])
     lcfi = 0
-    lcfx = int(listarchivefiles['fnumfiles'])
-    if(lenlist > listarchivefiles['fnumfiles'] or lenlist < listarchivefiles['fnumfiles']):
+    lcfx = int(listarrayfiles['fnumfiles'])
+    if(lenlist > listarrayfiles['fnumfiles'] or lenlist < listarrayfiles['fnumfiles']):
         lcfx = int(lenlist)
     else:
-        lcfx = int(listarchivefiles['fnumfiles'])
+        lcfx = int(listarrayfiles['fnumfiles'])
     while(lcfi < lcfx):
-        filetoidarray = {listarchivefiles['ffilelist'][lcfi]
-                         ['fname']: listarchivefiles['ffilelist'][lcfi]['fid']}
-        idtofilearray = {listarchivefiles['ffilelist'][lcfi]
-                         ['fid']: listarchivefiles['ffilelist'][lcfi]['fname']}
+        filetoidarray = {listarrayfiles['ffilelist'][lcfi]
+                         ['fname']: listarrayfiles['ffilelist'][lcfi]['fid']}
+        idtofilearray = {listarrayfiles['ffilelist'][lcfi]
+                         ['fid']: listarrayfiles['ffilelist'][lcfi]['fname']}
         outarray['filetoid'].update(filetoidarray)
         outarray['idtofile'].update(idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 0 or listarchivefiles['ffilelist'][lcfi]['ftype'] == 7):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 0 or listarrayfiles['ffilelist'][lcfi]['ftype'] == 7):
             outarray['filetypes']['files']['filetoid'].update(filetoidarray)
             outarray['filetypes']['files']['idtofile'].update(idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 1):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 1):
             outarray['filetypes']['hardlinks']['filetoid'].update(
                 filetoidarray)
             outarray['filetypes']['hardlinks']['idtofile'].update(
                 idtofilearray)
             outarray['filetypes']['links']['filetoid'].update(filetoidarray)
             outarray['filetypes']['links']['idtofile'].update(idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 2):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 2):
             outarray['filetypes']['symlinks']['filetoid'].update(filetoidarray)
             outarray['filetypes']['symlinks']['idtofile'].update(idtofilearray)
             outarray['filetypes']['links']['filetoid'].update(filetoidarray)
             outarray['filetypes']['links']['idtofile'].update(idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 3):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 3):
             outarray['filetypes']['character']['filetoid'].update(
                 filetoidarray)
             outarray['filetypes']['character']['idtofile'].update(
                 idtofilearray)
             outarray['filetypes']['devices']['filetoid'].update(filetoidarray)
             outarray['filetypes']['devices']['idtofile'].update(idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 4):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 4):
             outarray['filetypes']['block']['filetoid'].update(filetoidarray)
             outarray['filetypes']['block']['idtofile'].update(idtofilearray)
             outarray['filetypes']['devices']['filetoid'].update(filetoidarray)
             outarray['filetypes']['devices']['idtofile'].update(idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 5):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 5):
             outarray['filetypes']['directories']['filetoid'].update(
                 filetoidarray)
             outarray['filetypes']['directories']['idtofile'].update(
                 idtofilearray)
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 6):
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 6):
             outarray['filetypes']['symlinks']['filetoid'].update(filetoidarray)
             outarray['filetypes']['symlinks']['idtofile'].update(idtofilearray)
             outarray['filetypes']['devices']['filetoid'].update(filetoidarray)
@@ -8359,13 +7708,13 @@ def ArchiveFileArrayToArrayIndex(inarray, returnfp=False):
     return outarray
 
 
-def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, seekstart=0, seekend=0, checksumtype=["crc32", "crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["crc32", "crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     if(isinstance(infile, dict)):
-        listarchivefiles = infile
+        listarrayfiles = infile
     else:
         if(infile != "-" and not isinstance(infile, bytes) and not hasattr(infile, "read") and not hasattr(infile, "write")):
             infile = RemoveWindowsPath(infile)
-        listarchivefiles = ArchiveFileToArray(infile, "auto", seekstart, seekend, False, True, skipchecksum, formatspecs, seektoend, returnfp)
+        listarrayfiles = ArchiveFileToArray(infile, "auto", filestart, seekstart, seekend, False, True, skipchecksum, formatspecs, seektoend, returnfp)
     if(IsNestedDict(formatspecs) and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype not in formatspecs):
@@ -8391,7 +7740,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 os.unlink(outfile)
             except OSError:
                 pass
-    if(not listarchivefiles):
+    if(not listarrayfiles):
         return False
     if(outfile == "-" or outfile is None):
         verbose = False
@@ -8411,19 +7760,19 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             return False
     formver = formatspecs['format_ver']
     fileheaderver = str(int(formver.replace(".", "")))
-    lenlist = len(listarchivefiles['ffilelist'])
-    fnumfiles = int(listarchivefiles['fnumfiles'])
+    lenlist = len(listarrayfiles['ffilelist'])
+    fnumfiles = int(listarrayfiles['fnumfiles'])
     if(lenlist > fnumfiles or lenlist < fnumfiles):
         fnumfiles = lenlist
-    AppendFileHeader(fp, fnumfiles, listarchivefiles['fencoding'], [], checksumtype[0], formatspecs)
-    lenlist = len(listarchivefiles['ffilelist'])
-    fnumfiles = int(listarchivefiles['fnumfiles'])
+    AppendFileHeader(fp, fnumfiles, listarrayfiles['fencoding'], [], checksumtype[0], formatspecs)
+    lenlist = len(listarrayfiles['ffilelist'])
+    fnumfiles = int(listarrayfiles['fnumfiles'])
     lcfi = 0
-    lcfx = int(listarchivefiles['fnumfiles'])
-    if(lenlist > listarchivefiles['fnumfiles'] or lenlist < listarchivefiles['fnumfiles']):
+    lcfx = int(listarrayfiles['fnumfiles'])
+    if(lenlist > listarrayfiles['fnumfiles'] or lenlist < listarrayfiles['fnumfiles']):
         lcfx = int(lenlist)
     else:
-        lcfx = int(listarchivefiles['fnumfiles'])
+        lcfx = int(listarrayfiles['fnumfiles'])
     curinode = 0
     curfid = 0
     inodelist = []
@@ -8431,66 +7780,66 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
     filetoinode = {}
     reallcfi = 0
     while(lcfi < lcfx):
-        fencoding = listarchivefiles['ffilelist'][reallcfi]['fencoding']
-        fcencoding = listarchivefiles['ffilelist'][reallcfi]['fencoding']
-        if(re.findall("^[.|/]", listarchivefiles['ffilelist'][reallcfi]['fname'])):
-            fname = listarchivefiles['ffilelist'][reallcfi]['fname']
+        fencoding = listarrayfiles['ffilelist'][reallcfi]['fencoding']
+        fcencoding = listarrayfiles['ffilelist'][reallcfi]['fencoding']
+        if(re.findall("^[.|/]", listarrayfiles['ffilelist'][reallcfi]['fname'])):
+            fname = listarrayfiles['ffilelist'][reallcfi]['fname']
         else:
-            fname = "./"+listarchivefiles['ffilelist'][reallcfi]['fname']
+            fname = "./"+listarrayfiles['ffilelist'][reallcfi]['fname']
         if(verbose):
             VerbosePrintOut(fname)
         fheadersize = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fheadersize']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fheadersize']), 'x').lower()
         fsize = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fsize']), 'x').lower()
-        flinkname = listarchivefiles['ffilelist'][reallcfi]['flinkname']
+            int(listarrayfiles['ffilelist'][reallcfi]['fsize']), 'x').lower()
+        flinkname = listarrayfiles['ffilelist'][reallcfi]['flinkname']
         fatime = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fatime']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fatime']), 'x').lower()
         fmtime = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fmtime']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fmtime']), 'x').lower()
         fctime = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fctime']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fctime']), 'x').lower()
         fbtime = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fbtime']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fbtime']), 'x').lower()
         fmode = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fmode']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fmode']), 'x').lower()
         fchmode = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fchmode']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fchmode']), 'x').lower()
         fuid = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fuid']), 'x').lower()
-        funame = listarchivefiles['ffilelist'][reallcfi]['funame']
+            int(listarrayfiles['ffilelist'][reallcfi]['fuid']), 'x').lower()
+        funame = listarrayfiles['ffilelist'][reallcfi]['funame']
         fgid = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fgid']), 'x').lower()
-        fgname = listarchivefiles['ffilelist'][reallcfi]['fgname']
+            int(listarrayfiles['ffilelist'][reallcfi]['fgid']), 'x').lower()
+        fgname = listarrayfiles['ffilelist'][reallcfi]['fgname']
         finode = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['finode']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['finode']), 'x').lower()
         flinkcount = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['flinkcount']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['flinkcount']), 'x').lower()
         fwinattributes = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fwinattributes']), 'x').lower()
-        fcompression = listarchivefiles['ffilelist'][reallcfi]['fcompression']
+            int(listarrayfiles['ffilelist'][reallcfi]['fwinattributes']), 'x').lower()
+        fcompression = listarrayfiles['ffilelist'][reallcfi]['fcompression']
         fcsize = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fcsize']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fcsize']), 'x').lower()
         fdev = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fdev']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fdev']), 'x').lower()
         fdev_minor = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fminor']), 'x').lower()
+            int(listarrayfiles['ffilelist'][reallcfi]['fminor']), 'x').lower()
         fdev_major = format(
-            int(listarchivefiles['ffilelist'][reallcfi]['fmajor']), 'x').lower()
-        fseeknextfile = listarchivefiles['ffilelist'][reallcfi]['fseeknextfile']
-        if(len(listarchivefiles['ffilelist'][reallcfi]['fextralist']) > listarchivefiles['ffilelist'][reallcfi]['fextrafields'] and len(listarchivefiles['ffilelist'][reallcfi]['fextralist']) > 0):
-            listarchivefiles['ffilelist'][reallcfi]['fextrafields'] = len(
-                listarchivefiles['ffilelist'][reallcfi]['fextralist'])
+            int(listarrayfiles['ffilelist'][reallcfi]['fmajor']), 'x').lower()
+        fseeknextfile = listarrayfiles['ffilelist'][reallcfi]['fseeknextfile']
+        if(len(listarrayfiles['ffilelist'][reallcfi]['fextralist']) > listarrayfiles['ffilelist'][reallcfi]['fextrafields'] and len(listarrayfiles['ffilelist'][reallcfi]['fextralist']) > 0):
+            listarrayfiles['ffilelist'][reallcfi]['fextrafields'] = len(
+                listarrayfiles['ffilelist'][reallcfi]['fextralist'])
         if(not followlink and len(extradata) <= 0):
-            extradata = listarchivefiles['ffilelist'][reallcfi]['fextralist']
+            extradata = listarrayfiles['ffilelist'][reallcfi]['fextralist']
         if(not followlink and len(jsondata) <= 0):
-            jsondata = listarchivefiles['ffilelist'][reallcfi]['fjsondata']
-        fcontents = listarchivefiles['ffilelist'][reallcfi]['fcontents']
-        if(not listarchivefiles['ffilelist'][reallcfi]['fcontentasfile']):
+            jsondata = listarrayfiles['ffilelist'][reallcfi]['fjsondata']
+        fcontents = listarrayfiles['ffilelist'][reallcfi]['fcontents']
+        if(not listarrayfiles['ffilelist'][reallcfi]['fcontentasfile']):
             fcontents = MkTempFile(fcontents)
-        typechecktest = CheckCompressionType(fcontents, closefp=False)
+        typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
         fcontents.seek(0, 0)
-        fcencoding = GetFileEncoding(fcontents, False)
+        fcencoding = GetFileEncoding(fcontents, 0, False)
         fcompression = ""
         fcsize = format(int(0), 'x').lower()
         curcompression = "none"
@@ -8533,10 +7882,10 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 fcontents.close()
                 fcontents = cfcontents
         if followlink:
-            if(listarchivefiles['ffilelist'][reallcfi]['ftype'] == 1 or listarchivefiles['ffilelist'][reallcfi]['ftype'] == 2):
-                getflinkpath = listarchivefiles['ffilelist'][reallcfi]['flinkname']
-                flinkid = prelistarchivefiles['filetoid'][getflinkpath]
-                flinkinfo = listarchivefiles['ffilelist'][flinkid]
+            if(listarrayfiles['ffilelist'][reallcfi]['ftype'] == 1 or listarrayfiles['ffilelist'][reallcfi]['ftype'] == 2):
+                getflinkpath = listarrayfiles['ffilelist'][reallcfi]['flinkname']
+                flinkid = prelistarrayfiles['filetoid'][getflinkpath]
+                flinkinfo = listarrayfiles['ffilelist'][flinkid]
                 fheadersize = format(
                     int(flinkinfo['fheadersize']), 'x').lower()
                 fsize = format(int(flinkinfo['fsize']), 'x').lower()
@@ -8573,10 +7922,10 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 ftypehex = format(flinkinfo['ftype'], 'x').lower()
         else:
             ftypehex = format(
-                listarchivefiles['ffilelist'][reallcfi]['ftype'], 'x').lower()
+                listarrayfiles['ffilelist'][reallcfi]['ftype'], 'x').lower()
         fcurfid = format(curfid, 'x').lower()
         if(not followlink and finode != 0):
-            if(listarchivefiles['ffilelist'][reallcfi]['ftype'] != 1):
+            if(listarrayfiles['ffilelist'][reallcfi]['ftype'] != 1):
                 fcurinode = format(int(curinode), 'x').lower()
                 inodetofile.update({curinode: fname})
                 filetoinode.update({fname: curinode})
@@ -8639,50 +7988,50 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         return True
 
 
-def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     fp = MkTempFile(instr)
-    listarchivefiles = RePackArchiveFile(fp, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist,
-                                     checksumtype, skipchecksum, extradata, formatspecs, verbose, returnfp)
-    return listarchivefiles
+    listarrayfiles = RePackArchiveFile(fp, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, followlink, filestart, seekstart, seekend,
+                                     checksumtype, skipchecksum, extradata, jsondata, formatspecs, seektoend, verbose, returnfp)
+    return listarrayfiles
 
 
-def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, compressionuselist, followlink, checksumtype, extradata, formatspecs, verbose, True)
-    listarchivefiles = RePackArchiveFile(outarray, outfile, fmttype, compression, compresswholefile,
-                                     compressionlevel, checksumtype, skipchecksum, extradata, formatspecs, verbose, returnfp)
-    return listarchivefiles
+    listarrayfiles = RePackArchiveFile(outarray, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, followlink, filestart, seekstart, seekend,
+                                     checksumtype, skipchecksum, extradata, jsondata, formatspecs, seektoend, verbose, returnfp)
+    return listarrayfiles
 
 
-def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, preservepermissions=True, preservetime=True, seektoend=False, verbose=False, returnfp=False):
+def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, preservepermissions=True, preservetime=True, seektoend=False, verbose=False, returnfp=False):
     if(outdir is not None):
         outdir = RemoveWindowsPath(outdir)
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
     if(isinstance(infile, dict)):
-        listarchivefiles = infile
+        listarrayfiles = infile
     else:
         if(infile != "-" and not hasattr(infile, "read") and not hasattr(infile, "write") and not (sys.version_info[0] >= 3 and isinstance(infile, bytes))):
             infile = RemoveWindowsPath(infile)
-        listarchivefiles = ArchiveFileToArray(infile, "auto", seekstart, seekend, False, True, skipchecksum, formatspecs, seektoend, returnfp)
-    if(not listarchivefiles):
+        listarrayfiles = ArchiveFileToArray(infile, "auto", filestart, seekstart, seekend, False, True, skipchecksum, formatspecs, seektoend, returnfp)
+    if(not listarrayfiles):
         return False
-    lenlist = len(listarchivefiles['ffilelist'])
-    fnumfiles = int(listarchivefiles['fnumfiles'])
+    lenlist = len(listarrayfiles['ffilelist'])
+    fnumfiles = int(listarrayfiles['fnumfiles'])
     lcfi = 0
-    lcfx = int(listarchivefiles['fnumfiles'])
-    if(lenlist > listarchivefiles['fnumfiles'] or lenlist < listarchivefiles['fnumfiles']):
+    lcfx = int(listarrayfiles['fnumfiles'])
+    if(lenlist > listarrayfiles['fnumfiles'] or lenlist < listarrayfiles['fnumfiles']):
         lcfx = int(lenlist)
     else:
-        lcfx = int(listarchivefiles['fnumfiles'])
+        lcfx = int(listarrayfiles['fnumfiles'])
     while(lcfi < lcfx):
         funame = ""
         try:
             import pwd
             try:
                 userinfo = pwd.getpwuid(
-                    listarchivefiles['ffilelist'][lcfi]['fuid'])
+                    listarrayfiles['ffilelist'][lcfi]['fuid'])
                 funame = userinfo.pw_name
             except KeyError:
                 funame = ""
@@ -8693,7 +8042,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
             import grp
             try:
                 groupinfo = grp.getgrgid(
-                    listarchivefiles['ffilelist'][lcfi]['fgid'])
+                    listarrayfiles['ffilelist'][lcfi]['fgid'])
                 fgname = groupinfo.gr_name
             except KeyError:
                 fgname = ""
@@ -8701,15 +8050,15 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
             fgname = ""
         if(verbose):
             VerbosePrintOut(PrependPath(
-                outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 0 or listarchivefiles['ffilelist'][lcfi]['ftype'] == 7):
-            with open(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
-                if(not listarchivefiles['ffilelist'][lcfi]['fcontentasfile']):
-                    listarchivefiles['ffilelist'][lcfi]['fcontents'] = MkTempFile(
-                        listarchivefiles['ffilelist'][lcfi]['fcontents'])
-                listarchivefiles['ffilelist'][lcfi]['fcontents'].seek(0, 0)
+                outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 0 or listarrayfiles['ffilelist'][lcfi]['ftype'] == 7):
+            with open(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
+                if(not listarrayfiles['ffilelist'][lcfi]['fcontentasfile']):
+                    listarrayfiles['ffilelist'][lcfi]['fcontents'] = MkTempFile(
+                        listarrayfiles['ffilelist'][lcfi]['fcontents'])
+                listarrayfiles['ffilelist'][lcfi]['fcontents'].seek(0, 0)
                 shutil.copyfileobj(
-                    listarchivefiles['ffilelist'][lcfi]['fcontents'], fpc)
+                    listarrayfiles['ffilelist'][lcfi]['fcontents'], fpc)
                 try:
                     fpc.flush()
                     if(hasattr(os, "sync")):
@@ -8720,20 +8069,20 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                     pass
                 except OSError:
                     pass
-            if(hasattr(os, "chown") and funame == listarchivefiles['ffilelist'][lcfi]['funame'] and fgname == listarchivefiles['ffilelist'][lcfi]['fgname'] and preservepermissions):
-                os.chown(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']),
-                         listarchivefiles['ffilelist'][lcfi]['fuid'], listarchivefiles['ffilelist'][lcfi]['fgid'])
+            if(hasattr(os, "chown") and funame == listarrayfiles['ffilelist'][lcfi]['funame'] and fgname == listarrayfiles['ffilelist'][lcfi]['fgname'] and preservepermissions):
+                os.chown(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']),
+                         listarrayfiles['ffilelist'][lcfi]['fuid'], listarrayfiles['ffilelist'][lcfi]['fgid'])
             if(preservepermissions):
                 os.chmod(PrependPath(
-                    outdir, listarchivefiles['ffilelist'][lcfi]['fname']), listarchivefiles['ffilelist'][lcfi]['fchmode'])
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
             if(preservetime):
-                os.utime(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), (
-                    listarchivefiles['ffilelist'][lcfi]['fatime'], listarchivefiles['ffilelist'][lcfi]['fmtime']))
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 1):
+                os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
+                    listarrayfiles['ffilelist'][lcfi]['fatime'], listarrayfiles['ffilelist'][lcfi]['fmtime']))
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 1):
             if(followlink):
-                getflinkpath = listarchivefiles['ffilelist'][lcfi]['flinkname']
-                flinkid = prelistarchivefiles['filetoid'][getflinkpath]
-                flinkinfo = listarchivefiles['ffilelist'][flinkid]
+                getflinkpath = listarrayfiles['ffilelist'][lcfi]['flinkname']
+                flinkid = prelistarrayfiles['filetoid'][getflinkpath]
+                flinkinfo = listarrayfiles['ffilelist'][flinkid]
                 funame = ""
                 try:
                     import pwd
@@ -8755,7 +8104,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                 except ImportError:
                     fgname = ""
                 if(flinkinfo['ftype'] == 0 or flinkinfo['ftype'] == 7):
-                    with open(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
+                    with open(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
                         if(not flinkinfo['fcontentasfile']):
                             flinkinfo['fcontents'] = MkTempFile(
                                 flinkinfo['fcontents'])
@@ -8773,46 +8122,46 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                             pass
                     if(hasattr(os, "chown") and funame == flinkinfo['funame'] and fgname == flinkinfo['fgname'] and preservepermissions):
                         os.chown(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
                     if(preservepermissions):
                         os.chmod(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
                     if(preservetime):
-                        os.utime(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), (
+                        os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
                             flinkinfo['fatime'], flinkinfo['fmtime']))
                 if(flinkinfo['ftype'] == 1):
                     os.link(flinkinfo['flinkname'], PrependPath(
-                        outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
+                        outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
                 if(flinkinfo['ftype'] == 2):
                     os.symlink(flinkinfo['flinkname'], PrependPath(
-                        outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
+                        outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
                 if(flinkinfo['ftype'] == 5):
                     if(preservepermissions):
                         os.mkdir(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
                     else:
                         os.mkdir(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
                     if(hasattr(os, "chown") and funame == flinkinfo['funame'] and fgname == flinkinfo['fgname'] and preservepermissions):
                         os.chown(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
                     if(preservepermissions):
                         os.chmod(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
                     if(preservetime):
-                        os.utime(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), (
+                        os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
                             flinkinfo['fatime'], flinkinfo['fmtime']))
                 if(flinkinfo['ftype'] == 6 and hasattr(os, "mkfifo")):
                     os.mkfifo(PrependPath(
-                        outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                        outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
             else:
-                os.link(listarchivefiles['ffilelist'][lcfi]['flinkname'], PrependPath(
-                    outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 2):
+                os.link(listarrayfiles['ffilelist'][lcfi]['flinkname'], PrependPath(
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 2):
             if(followlink):
-                getflinkpath = listarchivefiles['ffilelist'][lcfi]['flinkname']
-                flinkid = prelistarchivefiles['filetoid'][getflinkpath]
-                flinkinfo = listarchivefiles['ffilelist'][flinkid]
+                getflinkpath = listarrayfiles['ffilelist'][lcfi]['flinkname']
+                flinkid = prelistarrayfiles['filetoid'][getflinkpath]
+                flinkinfo = listarrayfiles['ffilelist'][flinkid]
                 funame = ""
                 try:
                     import pwd
@@ -8834,7 +8183,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                 except ImportError:
                     fgname = ""
                 if(flinkinfo['ftype'] == 0 or flinkinfo['ftype'] == 7):
-                    with open(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
+                    with open(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), "wb") as fpc:
                         if(not flinkinfo['fcontentasfile']):
                             flinkinfo['fcontents'] = MkTempFile(
                                 flinkinfo['fcontents'])
@@ -8852,71 +8201,71 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, seekstart=0, seeken
                             pass
                     if(hasattr(os, "chown") and funame == flinkinfo['funame'] and fgname == flinkinfo['fgname'] and preservepermissions):
                         os.chown(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
                     if(preservepermissions):
                         os.chmod(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
                     if(preservetime):
-                        os.utime(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), (
+                        os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
                             flinkinfo['fatime'], flinkinfo['fmtime']))
                 if(flinkinfo['ftype'] == 1):
                     os.link(flinkinfo['flinkname'], PrependPath(
-                        outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
+                        outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
                 if(flinkinfo['ftype'] == 2):
                     os.symlink(flinkinfo['flinkname'], PrependPath(
-                        outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
+                        outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
                 if(flinkinfo['ftype'] == 5):
                     if(preservepermissions):
                         os.mkdir(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
                     else:
                         os.mkdir(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
                     if(hasattr(os, "chown") and funame == flinkinfo['funame'] and fgname == flinkinfo['fgname'] and preservepermissions):
                         os.chown(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fuid'], flinkinfo['fgid'])
                     if(preservepermissions):
                         os.chmod(PrependPath(
-                            outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                            outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
                     if(preservetime):
-                        os.utime(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), (
+                        os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
                             flinkinfo['fatime'], flinkinfo['fmtime']))
                 if(flinkinfo['ftype'] == 6 and hasattr(os, "mkfifo")):
                     os.mkfifo(PrependPath(
-                        outdir, listarchivefiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
+                        outdir, listarrayfiles['ffilelist'][lcfi]['fname']), flinkinfo['fchmode'])
             else:
-                os.symlink(listarchivefiles['ffilelist'][lcfi]['flinkname'], PrependPath(
-                    outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 5):
+                os.symlink(listarrayfiles['ffilelist'][lcfi]['flinkname'], PrependPath(
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 5):
             if(preservepermissions):
                 os.mkdir(PrependPath(
-                    outdir, listarchivefiles['ffilelist'][lcfi]['fname']), listarchivefiles['ffilelist'][lcfi]['fchmode'])
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
             else:
                 os.mkdir(PrependPath(
-                    outdir, listarchivefiles['ffilelist'][lcfi]['fname']))
-            if(hasattr(os, "chown") and funame == listarchivefiles['ffilelist'][lcfi]['funame'] and fgname == listarchivefiles['ffilelist'][lcfi]['fgname'] and preservepermissions):
-                os.chown(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']),
-                         listarchivefiles['ffilelist'][lcfi]['fuid'], listarchivefiles['ffilelist'][lcfi]['fgid'])
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
+            if(hasattr(os, "chown") and funame == listarrayfiles['ffilelist'][lcfi]['funame'] and fgname == listarrayfiles['ffilelist'][lcfi]['fgname'] and preservepermissions):
+                os.chown(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']),
+                         listarrayfiles['ffilelist'][lcfi]['fuid'], listarrayfiles['ffilelist'][lcfi]['fgid'])
             if(preservepermissions):
                 os.chmod(PrependPath(
-                    outdir, listarchivefiles['ffilelist'][lcfi]['fname']), listarchivefiles['ffilelist'][lcfi]['fchmode'])
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
             if(preservetime):
-                os.utime(PrependPath(outdir, listarchivefiles['ffilelist'][lcfi]['fname']), (
-                    listarchivefiles['ffilelist'][lcfi]['fatime'], listarchivefiles['ffilelist'][lcfi]['fmtime']))
-        if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 6 and hasattr(os, "mkfifo")):
+                os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
+                    listarrayfiles['ffilelist'][lcfi]['fatime'], listarrayfiles['ffilelist'][lcfi]['fmtime']))
+        if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 6 and hasattr(os, "mkfifo")):
             os.mkfifo(PrependPath(
-                outdir, listarchivefiles['ffilelist'][lcfi]['fname']), listarchivefiles['ffilelist'][lcfi]['fchmode'])
+                outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
         lcfi = lcfi + 1
     if(returnfp):
-        return listarchivefiles['ffilelist']['fp']
+        return listarrayfiles['ffilelist']['fp']
     else:
         return True
 
 
 def UnPackArchiveFileString(instr, outdir=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
     fp = MkTempFile(instr)
-    listarchivefiles = UnPackArchiveFile(fp, outdir, followlink, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
-    return listarchivefiles
+    listarrayfiles = UnPackArchiveFile(fp, outdir, followlink, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
+    return listarrayfiles
 
 def ftype_to_str(ftype):
     mapping = {
@@ -8933,64 +8282,64 @@ def ftype_to_str(ftype):
     # Default to "file" if unknown
     return mapping.get(ftype, "file")
 
-def ArchiveFileListFiles(infile, fmttype="auto", seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
+def ArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
     if(isinstance(infile, dict)):
-        listarchivefiles = infile
+        listarrayfiles = infile
     else:
         if(infile != "-" and not hasattr(infile, "read") and not hasattr(infile, "write") and not (sys.version_info[0] >= 3 and isinstance(infile, bytes))):
             infile = RemoveWindowsPath(infile)
-        listarchivefiles = ArchiveFileToArray(infile, fmttype, seekstart, seekend, True, False, False, skipchecksum, formatspecs, seektoend, returnfp)
-    if(not listarchivefiles):
+        listarrayfiles = ArchiveFileToArray(infile, fmttype, filestart, seekstart, seekend, True, False, False, skipchecksum, formatspecs, seektoend, returnfp)
+    if(not listarrayfiles):
         return False
-    lenlist = len(listarchivefiles['ffilelist'])
-    fnumfiles = int(listarchivefiles['fnumfiles'])
+    lenlist = len(listarrayfiles['ffilelist'])
+    fnumfiles = int(listarrayfiles['fnumfiles'])
     lcfi = 0
-    lcfx = int(listarchivefiles['fnumfiles'])
-    if(lenlist > listarchivefiles['fnumfiles'] or lenlist < listarchivefiles['fnumfiles']):
+    lcfx = int(listarrayfiles['fnumfiles'])
+    if(lenlist > listarrayfiles['fnumfiles'] or lenlist < listarrayfiles['fnumfiles']):
         lcfx = int(lenlist)
     else:
-        lcfx = int(listarchivefiles['fnumfiles'])
+        lcfx = int(listarrayfiles['fnumfiles'])
     returnval = {}
     while(lcfi < lcfx):
-        returnval.update({lcfi: listarchivefiles['ffilelist'][lcfi]['fname']})
+        returnval.update({lcfi: listarrayfiles['ffilelist'][lcfi]['fname']})
         if(not verbose):
-            VerbosePrintOut(listarchivefiles['ffilelist'][lcfi]['fname'])
+            VerbosePrintOut(listarrayfiles['ffilelist'][lcfi]['fname'])
         if(verbose):
             permissions = {'access': {'0': ('---'), '1': ('--x'), '2': ('-w-'), '3': ('-wx'), '4': (
                 'r--'), '5': ('r-x'), '6': ('rw-'), '7': ('rwx')}, 'roles': {0: 'owner', 1: 'group', 2: 'other'}}
-            printfname = listarchivefiles['ffilelist'][lcfi]['fname']
-            if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 1):
-                printfname = listarchivefiles['ffilelist'][lcfi]['fname'] + \
-                    " link to " + listarchivefiles['ffilelist'][lcfi]['flinkname']
-            if(listarchivefiles['ffilelist'][lcfi]['ftype'] == 2):
-                printfname = listarchivefiles['ffilelist'][lcfi]['fname'] + \
-                    " -> " + listarchivefiles['ffilelist'][lcfi]['flinkname']
-            fuprint = listarchivefiles['ffilelist'][lcfi]['funame']
+            printfname = listarrayfiles['ffilelist'][lcfi]['fname']
+            if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 1):
+                printfname = listarrayfiles['ffilelist'][lcfi]['fname'] + \
+                    " link to " + listarrayfiles['ffilelist'][lcfi]['flinkname']
+            if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 2):
+                printfname = listarrayfiles['ffilelist'][lcfi]['fname'] + \
+                    " -> " + listarrayfiles['ffilelist'][lcfi]['flinkname']
+            fuprint = listarrayfiles['ffilelist'][lcfi]['funame']
             if(len(fuprint) <= 0):
-                fuprint = listarchivefiles['ffilelist'][lcfi]['fuid']
-            fgprint = listarchivefiles['ffilelist'][lcfi]['fgname']
+                fuprint = listarrayfiles['ffilelist'][lcfi]['fuid']
+            fgprint = listarrayfiles['ffilelist'][lcfi]['fgname']
             if(len(fgprint) <= 0):
-                fgprint = listarchivefiles['ffilelist'][lcfi]['fgid']
+                fgprint = listarrayfiles['ffilelist'][lcfi]['fgid']
             if(newstyle):
-                VerbosePrintOut(ftype_to_str(listarchivefiles['ffilelist'][lcfi]['ftype']) + "\t" + listarchivefiles['ffilelist'][lcfi]['fcompression'] + "\t" + str(
-                listarchivefiles['ffilelist'][lcfi]['fsize']).rjust(15) + "\t" + printfname)
+                VerbosePrintOut(ftype_to_str(listarrayfiles['ffilelist'][lcfi]['ftype']) + "\t" + listarrayfiles['ffilelist'][lcfi]['fcompression'] + "\t" + str(
+                listarrayfiles['ffilelist'][lcfi]['fsize']).rjust(15) + "\t" + printfname)
             else:
-                VerbosePrintOut(PrintPermissionString(listarchivefiles['ffilelist'][lcfi]['fmode'], listarchivefiles['ffilelist'][lcfi]['ftype']) + " " + str(fuprint) + "/" + str(fgprint) + " " + str(
-                listarchivefiles['ffilelist'][lcfi]['fsize']).rjust(15) + " " + datetime.datetime.utcfromtimestamp(listarchivefiles['ffilelist'][lcfi]['fmtime']).strftime('%Y-%m-%d %H:%M') + " " + printfname)
+                VerbosePrintOut(PrintPermissionString(listarrayfiles['ffilelist'][lcfi]['fmode'], listarrayfiles['ffilelist'][lcfi]['ftype']) + " " + str(fuprint) + "/" + str(fgprint) + " " + str(
+                listarrayfiles['ffilelist'][lcfi]['fsize']).rjust(15) + " " + datetime.datetime.utcfromtimestamp(listarrayfiles['ffilelist'][lcfi]['fmtime']).strftime('%Y-%m-%d %H:%M') + " " + printfname)
         lcfi = lcfi + 1
     if(returnfp):
-        return listarchivefiles['fp']
+        return listarrayfiles['fp']
     else:
         return True
 
 
 def ArchiveFileStringListFiles(instr, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
     fp = MkTempFile(instr)
-    listarchivefiles = ArchiveFileListFiles(
+    listarrayfiles = ArchiveFileListFiles(
         instr, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, newstyle, returnfp)
-    return listarchivefiles
+    return listarrayfiles
 
 
 def TarFileListFiles(infile, verbose=False, returnfp=False):
@@ -9030,7 +8379,7 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
                 return False
     try:
         if(hasattr(infile, "read") or hasattr(infile, "write")):
-            compresscheck = CheckCompressionType(infile, formatspecs, False)
+            compresscheck = CheckCompressionType(infile, formatspecs, 0, False)
             if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
                 formatspecs = formatspecs[compresscheck]
             if(compresscheck=="zstd"):
@@ -9042,7 +8391,7 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
             else:
                 tarfp = tarfile.open(fileobj=infile, mode="r")
         else:
-            compresscheck = CheckCompressionType(infile, formatspecs, True)
+            compresscheck = CheckCompressionType(infile, formatspecs, 0, True)
             if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
                 formatspecs = formatspecs[compresscheck]
             if(compresscheck=="zstd"):
@@ -9113,7 +8462,7 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
                 member.size).rjust(15) + " " + datetime.datetime.utcfromtimestamp(member.mtime).strftime('%Y-%m-%d %H:%M') + " " + printfname)
         lcfi = lcfi + 1
     if(returnfp):
-        return listarchivefiles['fp']
+        return listarrayfiles['fp']
     else:
         return True
 
@@ -9246,7 +8595,7 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
                 15) + " " + datetime.datetime.utcfromtimestamp(int(time.mktime(member.date_time + (0, 0, -1)))).strftime('%Y-%m-%d %H:%M') + " " + printfname)
         lcfi = lcfi + 1
     if(returnfp):
-        return listarchivefiles['fp']
+        return listarrayfiles['fp']
     else:
         return True
 
@@ -9384,7 +8733,7 @@ if(rarfile_support):
                     member.file_size).rjust(15) + " " + member.mtime.strftime('%Y-%m-%d %H:%M') + " " + printfname)
             lcfi = lcfi + 1
         if(returnfp):
-            return listarchivefiles['fp']
+            return listarrayfiles['fp']
         else:
             return True
 
@@ -9402,7 +8751,7 @@ if(py7zr_support):
         returnval = {}
         szpfp = py7zr.SevenZipFile(infile, mode="r")
         file_content = szpfp.readall()
-        #sztest = szpfp.testzip();
+        #sztest = szpfp.testzip()
         sztestalt = szpfp.test()
         if(sztestalt):
             VerbosePrintOut("Bad file found!")
@@ -9491,7 +8840,7 @@ if(py7zr_support):
                     fsize).rjust(15) + " " + member.creationtime.strftime('%Y-%m-%d %H:%M') + " " + printfname)
             lcfi = lcfi + 1
         if(returnfp):
-            return listarchivefiles['fp']
+            return listarrayfiles['fp']
         else:
             return True
 
@@ -9499,7 +8848,7 @@ if(py7zr_support):
 def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict__, seektoend=False, newstyle=False, returnfp=False):
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, True)
+    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
@@ -9521,9 +8870,9 @@ def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compress
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, compression, compresswholefile,
                               compressionlevel, followlink, checksumtype, formatspecs, False, True)
-    listarchivefiles = ArchiveFileListFiles(
+    listarrayfiles = ArchiveFileListFiles(
         outarray, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
-    return listarchivefiles
+    return listarrayfiles
 
 """
 PyNeoFile compatibility layer
@@ -9545,7 +8894,7 @@ def pack_neo(infiles, outfile=None, formatspecs=__file_format_multi_dict__, chec
     return PackArchiveFile(infiles, outfile, False, "auto", compression, False, compression_level, compressionlistalt, False, checksumtypes, [], {}, formatspecs, False, returnfp)
 
 def archive_to_array_neo(infile, formatspecs=__file_format_multi_dict__, listonly=False, skipchecksum=False, uncompress=True, returnfp=False):
-    return ArchiveFileToArray(infile, "auto", 0, 0, listonly, True, uncompress, skipchecksum, formatspecs, False, returnfp)
+    return ArchiveFileToArray(infile, "auto", 0, 0, 0, listonly, True, uncompress, skipchecksum, formatspecs, False, returnfp)
 
 def unpack_neo(infile, outdir='.', formatspecs=__file_format_multi_dict__, skipchecksum=False, uncompress=True, returnfp=False):
     return UnPackArchiveFile(infile, outdir, False, 0, 0, skipchecksum, formatspecs, True, True, False, False, returnfp)
@@ -9560,7 +8909,7 @@ def archivefilelistfiles_neo(infile, formatspecs=__file_format_multi_dict__, adv
     return ArchiveFileListFiles(infile, "auto", 0, 0, False, formatspecs, False, True, advanced, returnfp)
 
 def convert_foreign_to_neo(infile, outfile=None, formatspecs=__file_format_multi_dict__, checksumtypes=["crc32", "crc32", "crc32", "crc32"], compression="auto", compression_level=None, returnfp=False):
-    intmp = InFileToArray(infile, 0, 0, False, True, False, formatspecs, False, False)
+    intmp = InFileToArray(infile, 0, 0, 0, False, True, False, formatspecs, False, False)
     return RePackArchiveFile(intmp, outfile, "auto", compression, False, compression_level, compressionlistalt, False, 0, 0, checksumtypes, False, [], {}, formatspecs, False, False, returnfp)
 
 def detect_cwd(ftp, file_dir):
@@ -10140,9 +9489,9 @@ def download_file_from_internet_file(url, headers=geturls_headers_pyfile_python_
     return False
 
 
-def download_file_from_internet_uncompress_file(url, headers=geturls_headers_pyfile_python_alt, formatspecs=__file_format_dict__):
+def download_file_from_internet_uncompress_file(url, headers=geturls_headers_pyfile_python_alt, filestart=0, formatspecs=__file_format_dict__):
     fp = download_file_from_internet_file(url)
-    fp = UncompressFileAlt(fp, formatspecs)
+    fp = UncompressFileAlt(fp, formatspecs, filestart)
     fp.seek(0, 0)
     if(not fp):
         return False
@@ -10165,9 +9514,9 @@ def download_file_from_internet_string(url, headers=geturls_headers_pyfile_pytho
     return False
 
 
-def download_file_from_internet_uncompress_string(url, headers=geturls_headers_pyfile_python_alt, formatspecs=__file_format_dict__):
+def download_file_from_internet_uncompress_string(url, headers=geturls_headers_pyfile_python_alt, filestart=0, formatspecs=__file_format_dict__):
     fp = download_file_from_internet_string(url)
-    fp = UncompressFileAlt(fp, formatspecs)
+    fp = UncompressFileAlt(fp, formatspecs, filestart)
     if(not fp):
         return False
     fp.seek(0, 0)
