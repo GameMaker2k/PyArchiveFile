@@ -7585,6 +7585,7 @@ def ArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend
         outlist.update({'fp': fp})
     else:
         fp.close()
+        outlist.update({'fp': None})
     return outlist
 
 
@@ -7733,6 +7734,8 @@ def ArchiveFileArrayToArrayIndex(inarray, returnfp=False):
     }, 'idtofile': {}}, 'hardlinks': {'filetoid': {}, 'idtofile': {}}, 'character': {'filetoid': {}, 'idtofile': {}}, 'block': {'filetoid': {}, 'idtofile': {}}, 'fifo': {'filetoid': {}, 'idtofile': {}}, 'devices': {'filetoid': {}, 'idtofile': {}}}}
     if(returnfp):
         outarray.update({'fp': listarrayfiles['fp']})
+    else:
+        outarray.update({'fp': None})
     lenlist = len(listarrayfiles['ffilelist'])
     lcfi = 0
     lcfx = int(listarrayfiles['fnumfiles'])
