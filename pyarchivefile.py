@@ -7099,7 +7099,12 @@ def StackedArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=
             SeekToEndOfFile(infile)
         outfsize = infile.tell()
         infile.seek(outstartfile, 0)
-    return outretval
+    if(returnfp):
+        return infile
+    else:
+        infile.close()
+        return outretval
+    
 
 
 def StackedArchiveFileValidateFile(infile, fmttype="auto", filestart=0, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
