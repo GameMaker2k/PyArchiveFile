@@ -7619,6 +7619,8 @@ def StackedArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0, 
         if(not returnfp):
             outarray.update({"fp": None})
         outretval.append(outarray)
+    if(not returnfp):
+        infile.close()
     return outretval
 
 
