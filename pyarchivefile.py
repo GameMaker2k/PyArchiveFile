@@ -8628,9 +8628,9 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
         return True
 
 
-def UnPackArchiveFileString(instr, outdir=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
+def UnPackArchiveFileString(instr, outdir=None, followlink=False, filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, returnfp=False):
     fp = MkTempFile(instr)
-    listarrayfiles = UnPackArchiveFile(fp, outdir, followlink, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
+    listarrayfiles = UnPackArchiveFile(fp, outdir, followlink, filestart, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
     return listarrayfiles
 
 def ftype_to_str(ftype):
@@ -8781,19 +8781,9 @@ def MultipleStackedArchiveFileListFiles(infile, fmttype="auto", filestart=0, see
     return outretval
 
 
-def ArchiveFileStringToArray(instr, filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
-    checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
-    if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
-        formatspecs = formatspecs[checkcompressfile]
+def ArchiveFileStringListFiles(instr, filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
     fp = MkTempFile(instr)
-    listarrayfiles = ArchiveFileToArray(fp, "auto", filestart, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
-    return listarrayfiles
-
-
-def ArchiveFileStringListFiles(instr, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
-    fp = MkTempFile(instr)
-    listarrayfiles = ArchiveFileListFiles(
-        instr, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, newstyle, returnfp)
+    listarrayfiles = ArchiveFileListFiles(instr, "auto", filestart, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, newstyle, returnfp)
     return listarrayfiles
 
 
