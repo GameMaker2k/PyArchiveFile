@@ -104,11 +104,11 @@ baseint = tuple(baseint)
 # URL Parsing
 try:
     # Python 3
-    from urllib.parse import urlparse, urlunparse, unquote
+    from urllib.parse import urlparse, urlunparse, parse_qs, unquote
     from urllib.request import url2pathname
 except ImportError:
     # Python 2
-    from urlparse import urlparse, urlunparse
+    from urlparse import urlparse, urlunparse, parse_qs
     from urllib import unquote, url2pathname
 
 # Windows-specific setup
@@ -269,8 +269,8 @@ def get_default_threads():
         # os.cpu_count() might not be available in some environments
         return 1
 
-__upload_proto_support__ = "^(ftp|ftps|sftp|scp)://"
-__download_proto_support__ = "^(http|https|ftp|ftps|sftp|scp)://"
+__upload_proto_support__ = "^(ftp|ftps|sftp|scp|tcp|udp)://"
+__download_proto_support__ = "^(http|https|ftp|ftps|sftp|scp|tcp|udp)://"
 __use_pysftp__ = False
 if(not havepysftp):
     __use_pysftp__ = False
@@ -694,6 +694,175 @@ def _resolves_outside(base_rel, target_rel):
     if combined == base_abs or combined.startswith(base_abs + u'/'):
         return False
     return True
+
+def _to_bytes(data):
+    if data is None:
+        return b""
+    if isinstance(data, bytes):
+        return data
+    if isinstance(data, unicode):
+        return data.encode("utf-8")
+    try:
+        return bytes(data)
+    except Exception:
+        return b"%s" % (data,)
+
+# ---------- Optional TLS helpers (TCP only) ----------
+def _ssl_available():
+    try:
+        import ssl  # noqa
+        return True
+    except Exception:
+        return False
+
+def _build_ssl_context(server_side=False, verify=True, ca_file=None, certfile=None, keyfile=None):
+    import ssl
+    create_ctx = getattr(ssl, "create_default_context", None)
+    SSLContext = getattr(ssl, "SSLContext", None)
+    purpose = getattr(ssl, "Purpose", None)
+    if create_ctx and purpose:
+        ctx = create_ctx(ssl.Purpose.CLIENT_AUTH if server_side else ssl.Purpose.SERVER_AUTH)
+    elif SSLContext:
+        ctx = SSLContext(getattr(ssl, "PROTOCOL_TLS", getattr(ssl, "PROTOCOL_SSLv23")))
+    else:
+        return None
+    if hasattr(ctx, "check_hostname") and not server_side:
+        ctx.check_hostname = bool(verify)
+    if verify:
+        if hasattr(ctx, "verify_mode"):
+            ctx.verify_mode = ssl.CERT_REQUIRED
+        if ca_file:
+            try:
+                ctx.load_verify_locations(cafile=ca_file)
+            except Exception:
+                pass
+        else:
+            load_default_certs = getattr(ctx, "load_default_certs", None)
+            if load_default_certs:
+                load_default_certs()
+    else:
+        if hasattr(ctx, "verify_mode"):
+            ctx.verify_mode = ssl.CERT_NONE
+        if hasattr(ctx, "check_hostname"):
+            ctx.check_hostname = False
+    if certfile:
+        ctx.load_cert_chain(certfile=certfile, keyfile=keyfile or None)
+    try:
+        ctx.set_ciphers("HIGH:!aNULL:!MD5:!RC4")
+    except Exception:
+        pass
+    return ctx
+
+def _ssl_wrap_socket(sock, server_side=False, server_hostname=None,
+                     verify=True, ca_file=None, certfile=None, keyfile=None):
+    import ssl
+    ctx = _build_ssl_context(server_side, verify, ca_file, certfile, keyfile)
+    if ctx is not None:
+        kwargs = {}
+        if not server_side and getattr(ssl, "HAS_SNI", False) and server_hostname:
+            kwargs["server_hostname"] = server_hostname
+        return ctx.wrap_socket(sock, server_side=server_side, **kwargs)
+    # Fallback for very old Pythons
+    kwargs = {
+        "ssl_version": getattr(ssl, "PROTOCOL_TLS", getattr(ssl, "PROTOCOL_SSLv23")),
+        "certfile": certfile or None,
+        "keyfile": keyfile or None,
+        "cert_reqs": (getattr(ssl, "CERT_REQUIRED", 2) if (verify and ca_file) else getattr(ssl, "CERT_NONE", 0)),
+    }
+    if verify and ca_file:
+        kwargs["ca_certs"] = ca_file
+    return ssl.wrap_socket(sock, **kwargs)
+
+# ---------- Tiny auth protocol ----------
+_MAGIC = b"AUTH\0"  # magic prefix
+_OK = b"OK"
+_NO = b"NO"
+
+def _build_auth_blob(user, pw):
+    return _MAGIC + _to_bytes(user) + b"\0" + _to_bytes(pw) + b"\0"
+
+def _parse_auth_blob(data):
+    # returns (user, pass) or (None, None)
+    if not data.startswith(_MAGIC):
+        return (None, None)
+    rest = data[len(_MAGIC):]
+    try:
+        user, rest = rest.split(b"\0", 1)
+        pw, _tail = rest.split(b"\0", 1)
+        return (user, pw)
+    except Exception:
+        return (None, None)
+
+
+def _qflag(qs, key, default=False):
+    v = qs.get(key, [None])[0]
+    if v is None:
+        return bool(default)
+    return str(v).lower() in ("1", "true", "yes", "on")
+
+def _qnum(qs, key, default=None, cast=float):
+    v = qs.get(key, [None])[0]
+    if v is None or v == "":
+        return default
+    try:
+        return cast(v)
+    except Exception:
+        return default
+
+def _qstr(qs, key, default=None):
+    v = qs.get(key, [None])[0]
+    if v is None:
+        return default
+    return v
+
+def _parse_net_url(url):
+    """
+    Parse tcp:// / udp:// URL and extract transport options.
+    Returns (parts, opts) where:
+      - parts is the parsed urlparse result
+      - opts is a dict you can pass to send_from_fileobj/recv_to_fileobj
+    """
+    parts = urlparse(url)
+    qs = parse_qs(parts.query or "")
+
+    proto = parts.scheme.lower()
+    if proto not in ("tcp", "udp"):
+        raise ValueError("Only tcp:// or udp:// supported here")
+
+    # Auth from URL authority
+    user = unquote(parts.username) if parts.username else None
+    pw   = unquote(parts.password) if parts.password else None
+
+    # TLS (TCP only)
+    use_ssl     = _qflag(qs, "ssl", False) if proto == "tcp" else False
+    ssl_verify  = _qflag(qs, "verify", True)
+    ssl_ca_file = _qstr(qs, "ca", None)
+    ssl_cert    = _qstr(qs, "cert", None)
+    ssl_key     = _qstr(qs, "key", None)
+
+    # Timeouts / sizes
+    timeout       = _qnum(qs, "timeout", None, float)
+    total_timeout = _qnum(qs, "total_timeout", None, float)  # recv path uses this
+    chunk_size    = int(_qnum(qs, "chunk", 65536, float))     # accept float -> int
+
+    # Auth policy
+    force_auth = _qflag(qs, "auth", False)
+
+    opts = dict(
+        proto=proto,
+        host=parts.hostname or "127.0.0.1",
+        port=int(parts.port or 0),
+        # credentials
+        user=user, pw=pw, force_auth=force_auth,
+        # tls
+        use_ssl=use_ssl, ssl_verify=ssl_verify,
+        ssl_ca_file=ssl_ca_file, ssl_certfile=ssl_cert, ssl_keyfile=ssl_key,
+        # io
+        timeout=timeout, total_timeout=total_timeout, chunk_size=chunk_size,
+        # SNI default to host for client side
+        server_hostname=parts.hostname or None,
+    )
+    return parts, opts
 
 
 def DetectTarBombArchiveFileArray(listarrayfiles,
@@ -9109,11 +9278,11 @@ def download_file_from_ftp_file(url):
     file_name = os.path.basename(unquote(urlparts.path))
     file_dir = os.path.dirname(unquote(urlparts.path))
     if(urlparts.username is not None):
-        ftp_username = urlparts.username
+        ftp_username = unquote(urlparts.username)
     else:
         ftp_username = "anonymous"
     if(urlparts.password is not None):
-        ftp_password = urlparts.password
+        ftp_password = unquote(urlparts.password)
     elif(urlparts.password is None and urlparts.username == "anonymous"):
         ftp_password = "anonymous"
     else:
@@ -9124,13 +9293,6 @@ def download_file_from_ftp_file(url):
         ftp = FTP_TLS()
     else:
         return False
-    if(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
-        if(__use_pysftp__):
-            return download_file_from_pysftp_file(url)
-        else:
-            return download_file_from_sftp_file(url)
-    elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
-        return download_file_from_http_file(url)
     ftp_port = urlparts.port
     if(urlparts.port is None):
         ftp_port = 21
@@ -9207,11 +9369,11 @@ def upload_file_to_ftp_file(ftpfile, url):
     file_name = os.path.basename(unquote(urlparts.path))
     file_dir = os.path.dirname(unquote(urlparts.path))
     if(urlparts.username is not None):
-        ftp_username = urlparts.username
+        ftp_username = unquote(urlparts.username)
     else:
         ftp_username = "anonymous"
     if(urlparts.password is not None):
-        ftp_password = urlparts.password
+        ftp_password = unquote(urlparts.password)
     elif(urlparts.password is None and urlparts.username == "anonymous"):
         ftp_password = "anonymous"
     else:
@@ -9221,13 +9383,6 @@ def upload_file_to_ftp_file(ftpfile, url):
     elif(urlparts.scheme == "ftps" and ftpssl):
         ftp = FTP_TLS()
     else:
-        return False
-    if(urlparts.scheme == "sftp" or urlparts.scheme == "scp"):
-        if(__use_pysftp__):
-            return upload_file_to_pysftp_file(url)
-        else:
-            return upload_file_to_sftp_file(url)
-    elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
         return False
     ftp_port = urlparts.port
     if(urlparts.port is None):
@@ -9326,8 +9481,8 @@ def download_file_from_http_file(url, headers=None, usehttp=__use_http_lib__):
     if headers is None:
         headers = {}
     urlparts = urlparse(url)
-    username = urlparts.username
-    password = urlparts.password
+    username = unquote(urlparts.username)
+    password = unquote(urlparts.password)
 
     # Rebuild URL without username and password
     netloc = urlparts.hostname or ''
@@ -9335,15 +9490,6 @@ def download_file_from_http_file(url, headers=None, usehttp=__use_http_lib__):
         netloc += ':' + str(urlparts.port)
     rebuilt_url = urlunparse((urlparts.scheme, netloc, urlparts.path,
                               urlparts.params, urlparts.query, urlparts.fragment))
-
-    # Handle SFTP/FTP
-    if urlparts.scheme == "sftp" or urlparts.scheme == "scp":
-        if __use_pysftp__:
-            return download_file_from_pysftp_file(url)
-        else:
-            return download_file_from_sftp_file(url)
-    elif urlparts.scheme == "ftp" or urlparts.scheme == "ftps":
-        return download_file_from_ftp_file(url)
 
     # Create a temporary file object
     httpfile = MkTempFile()
@@ -9426,19 +9572,15 @@ if(haveparamiko):
         else:
             sftp_port = urlparts.port
         if(urlparts.username is not None):
-            sftp_username = urlparts.username
+            sftp_username = unquote(urlparts.username)
         else:
             sftp_username = "anonymous"
         if(urlparts.password is not None):
-            sftp_password = urlparts.password
+            sftp_password = unquote(urlparts.password)
         elif(urlparts.password is None and urlparts.username == "anonymous"):
             sftp_password = "anonymous"
         else:
             sftp_password = ""
-        if(urlparts.scheme == "ftp"):
-            return download_file_from_ftp_file(url)
-        elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
-            return download_file_from_http_file(url)
         if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         ssh = paramiko.SSHClient()
@@ -9446,7 +9588,7 @@ if(haveparamiko):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             ssh.connect(urlparts.hostname, port=sftp_port,
-                        username=sftp_username, password=urlparts.password)
+                        username=sftp_username, password=sftp_password)
         except paramiko.ssh_exception.SSHException:
             return False
         except socket.gaierror:
@@ -9487,19 +9629,15 @@ if(haveparamiko):
         else:
             sftp_port = urlparts.port
         if(urlparts.username is not None):
-            sftp_username = urlparts.username
+            sftp_username = unquote(urlparts.username)
         else:
             sftp_username = "anonymous"
         if(urlparts.password is not None):
-            sftp_password = urlparts.password
+            sftp_password = unquote(urlparts.password)
         elif(urlparts.password is None and urlparts.username == "anonymous"):
             sftp_password = "anonymous"
         else:
             sftp_password = ""
-        if(urlparts.scheme == "ftp"):
-            return upload_file_to_ftp_file(sftpfile, url)
-        elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
-            return False
         if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         ssh = paramiko.SSHClient()
@@ -9548,19 +9686,15 @@ if(havepysftp):
         else:
             sftp_port = urlparts.port
         if(urlparts.username is not None):
-            sftp_username = urlparts.username
+            sftp_username = unquote(urlparts.username)
         else:
             sftp_username = "anonymous"
         if(urlparts.password is not None):
-            sftp_password = urlparts.password
+            sftp_password = unquote(urlparts.password)
         elif(urlparts.password is None and urlparts.username == "anonymous"):
             sftp_password = "anonymous"
         else:
             sftp_password = ""
-        if(urlparts.scheme == "ftp"):
-            return download_file_from_ftp_file(url)
-        elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
-            return download_file_from_http_file(url)
         if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         try:
@@ -9605,19 +9739,15 @@ if(havepysftp):
         else:
             sftp_port = urlparts.port
         if(urlparts.username is not None):
-            sftp_username = urlparts.username
+            sftp_username = unquote(urlparts.username)
         else:
             sftp_username = "anonymous"
         if(urlparts.password is not None):
-            sftp_password = urlparts.password
+            sftp_password = unquote(urlparts.password)
         elif(urlparts.password is None and urlparts.username == "anonymous"):
             sftp_password = "anonymous"
         else:
             sftp_password = ""
-        if(urlparts.scheme == "ftp"):
-            return upload_file_to_ftp_file(sftpfile, url)
-        elif(urlparts.scheme == "http" or urlparts.scheme == "https"):
-            return False
         if(urlparts.scheme != "sftp" and urlparts.scheme != "scp"):
             return False
         try:
@@ -9663,6 +9793,18 @@ def download_file_from_internet_file(url, headers=geturls_headers_pyfile_python_
             return download_file_from_pysftp_file(url)
         else:
             return download_file_from_sftp_file(url)
+    elif(urlparts.scheme == "tcp" or urlparts.scheme == "udp"):
+        outfile = MkTempFile()
+        use_auth = False
+        if(urlparts.username is not None and urlparts.password is not None):
+            use_auth = True
+        username = unquote(urlparts.username) if urlparts.username is not None else None
+        password   = unquote(urlparts.password) if urlparts.password is not None else None
+        returnval = recv_to_fileobj(outfile, urlparts.hostname, urlparts.port, urlparts.scheme, require_auth=use_auth, expected_user=username, expected_pass=password)
+        if(not returnval):
+            return False
+        outfile.seek(0, 0)
+        return outfile
     else:
         return False
     return False
@@ -9715,6 +9857,15 @@ def upload_file_to_internet_file(ifp, url):
             return upload_file_to_pysftp_file(ifp, url)
         else:
             return upload_file_to_sftp_file(ifp, url)
+    elif(urlparts.scheme == "tcp" or urlparts.scheme == "udp"):
+        use_auth = False
+        if(urlparts.username is not None and urlparts.password is not None):
+            use_auth = True
+        username = unquote(urlparts.username) if urlparts.username is not None else None
+        password   = unquote(urlparts.password) if urlparts.password is not None else None
+        ifp.seek(0, 0)
+        returnval = send_from_fileobj(ifp, urlparts.hostname, urlparts.port, urlparts.scheme, auth_user=username, auth_pass=password)
+        return returnval
     else:
         return False
     return False
@@ -9753,3 +9904,332 @@ def upload_file_to_internet_compress_string(ifp, url, compression="auto", compre
         return False
     fp.seek(0, 0)
     return upload_file_to_internet_file(fp, outfile)
+
+
+def send_from_fileobj(fileobj, host, port, proto="tcp", timeout=None,
+                      chunk_size=65536,
+                      use_ssl=False, ssl_verify=True, ssl_ca_file=None,
+                      ssl_certfile=None, ssl_keyfile=None, server_hostname=None,
+                      auth_user=None, auth_pass=None):
+    """
+    Send fileobj contents to (host, port) via TCP or UDP.
+    Optional TLS (TCP only) and optional username/password auth preface.
+
+    If auth_user/auth_pass provided:
+      - TCP: send an auth preface and wait for OK before streaming data.
+      - UDP: first datagram is auth; only after OK reply will data be sent.
+    """
+    proto = (proto or "tcp").lower()
+    total = 0
+    port = int(port)
+
+    if proto not in ("tcp", "udp"):
+        raise ValueError("proto must be 'tcp' or 'udp'")
+
+    # ---- UDP (no TLS) ----
+    if proto == "udp":
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            if timeout is not None:
+                sock.settimeout(timeout)
+            # Optional "connect" to set default peer
+            try:
+                sock.connect((host, port))
+                connected = True
+            except Exception:
+                connected = False
+
+            # If using auth, do an initial handshake (send auth, expect OK)
+            if auth_user is not None or auth_pass is not None:
+                blob = _build_auth_blob(auth_user or b"", auth_pass or b"")
+                if connected:
+                    sock.send(blob)
+                    try:
+                        resp = sock.recv(16)
+                    except socket.timeout:
+                        raise RuntimeError("UDP auth: timeout waiting for server OK/NO")
+                else:
+                    sock.sendto(blob, (host, port))
+                    try:
+                        resp, _ = sock.recvfrom(16)
+                    except socket.timeout:
+                        raise RuntimeError("UDP auth: timeout waiting for server OK/NO")
+                if resp != _OK:
+                    raise RuntimeError("UDP auth failed")
+
+            # Stream data
+            while True:
+                chunk = fileobj.read(chunk_size)
+                if not chunk:
+                    break
+                b = _to_bytes(chunk)
+                total += (sock.send(b) if connected else sock.sendto(b, (host, port)))
+        finally:
+            try: sock.close()
+            except Exception: pass
+        return total
+
+    # ---- TCP (optionally TLS) ----
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        if timeout is not None:
+            sock.settimeout(timeout)
+        sock.connect((host, port))
+        if use_ssl:
+            if not _ssl_available():
+                raise RuntimeError("SSL requested but 'ssl' module unavailable.")
+            sock = _ssl_wrap_socket(sock, server_side=False,
+                                    server_hostname=(server_hostname or host),
+                                    verify=ssl_verify, ca_file=ssl_ca_file,
+                                    certfile=ssl_certfile, keyfile=ssl_keyfile)
+
+        # Auth preface (if requested)
+        if auth_user is not None or auth_pass is not None:
+            sock.sendall(_build_auth_blob(auth_user or b"", auth_pass or b""))
+            # Wait for OK before sending data
+            resp = sock.recv(16)
+            if resp != _OK:
+                raise RuntimeError("TCP auth failed")
+
+        # sendfile if available; else loop
+        use_sendfile = hasattr(sock, "sendfile") and hasattr(fileobj, "read")
+        if use_sendfile:
+            try:
+                sent = sock.sendfile(fileobj)
+                if isinstance(sent, int):
+                    total += sent
+                else:
+                    while True:
+                        chunk = fileobj.read(chunk_size)
+                        if not chunk: break
+                        view = memoryview(_to_bytes(chunk))
+                        while view:
+                            n = sock.send(view); total += n; view = view[n:]
+            except Exception:
+                while True:
+                    chunk = fileobj.read(chunk_size)
+                    if not chunk: break
+                    view = memoryview(_to_bytes(chunk))
+                    while view:
+                        n = sock.send(view); total += n; view = view[n:]
+        else:
+            while True:
+                chunk = fileobj.read(chunk_size)
+                if not chunk: break
+                view = memoryview(_to_bytes(chunk))
+                while view:
+                    n = sock.send(view); total += n; view = view[n:]
+    finally:
+        try: sock.shutdown(socket.SHUT_WR)
+        except Exception: pass
+        try: sock.close()
+        except Exception: pass
+    return total
+
+
+def recv_to_fileobj(fileobj, host="", port=0, proto="tcp", timeout=None,
+                    max_bytes=None, chunk_size=65536, backlog=1,
+                    use_ssl=False, ssl_verify=True, ssl_ca_file=None,
+                    ssl_certfile=None, ssl_keyfile=None,
+                    require_auth=False, expected_user=None, expected_pass=None,
+                    total_timeout=None):   # <-- NEW
+    """
+    ... (docstring unchanged) ...
+    Args:
+        ...
+        timeout (float|None): per-operation socket timeout in seconds.
+        total_timeout (float|None): hard cap on total runtime in seconds.  # <-- NEW
+    """
+    proto = (proto or "tcp").lower()
+    port = int(port)
+    total = 0
+
+    # --- total-time helpers ---
+    start_ts = time.time()
+
+    def _time_left():
+        if total_timeout is None:
+            return None
+        left = total_timeout - (time.time() - start_ts)
+        return 0.0 if left <= 0 else left
+
+    def _set_effective_timeout(socklike, base_timeout):
+        """Set socket timeout to min(base_timeout, time_left). Return False if no time left."""
+        left = _time_left()
+        if left == 0.0:
+            return False
+        eff = base_timeout
+        if left is not None:
+            eff = left if eff is None else min(eff, left)
+        if eff is not None:
+            try:
+                socklike.settimeout(eff)
+            except Exception:
+                pass
+        return True
+
+    if proto not in ("tcp", "udp"):
+        raise ValueError("proto must be 'tcp' or 'udp'")
+
+    # ---- UDP server ----
+    if proto == "udp":
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        authed_addr = None
+        try:
+            sock.bind((host or "", port))
+            while True:
+                # total timeout check
+                if _time_left() == 0.0:
+                    break
+                if (max_bytes is not None) and (total >= max_bytes):
+                    break
+
+                # set effective timeout before each recvfrom
+                if not _set_effective_timeout(sock, timeout):
+                    break
+
+                try:
+                    data, addr = sock.recvfrom(chunk_size)
+                except socket.timeout:
+                    break
+
+                if not data:
+                    continue
+
+                if require_auth and authed_addr is None:
+                    user, pw = _parse_auth_blob(data)
+                    ok = (user is not None and
+                          (expected_user is None or user == _to_bytes(expected_user)) and
+                          (expected_pass is None or pw == _to_bytes(expected_pass)))
+                    sock.sendto((_OK if ok else _NO), addr)
+                    if ok:
+                        authed_addr = addr
+                    continue
+
+                if require_auth and addr != authed_addr:
+                    continue
+
+                fileobj.write(data)
+                try: fileobj.flush()
+                except Exception: pass
+                total += len(data)
+        finally:
+            try: sock.close()
+            except Exception: pass
+        return total
+
+    # ---- TCP server ----
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        try: srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        except Exception: pass
+        srv.bind((host or "", port))
+        srv.listen(int(backlog) if backlog else 1)
+
+        # effective timeout for accept
+        if not _set_effective_timeout(srv, timeout):
+            return 0
+        try:
+            conn, _peer = srv.accept()
+        except socket.timeout:
+            return 0
+
+        # TLS wrap if requested (unchanged)
+        if use_ssl:
+            if not _ssl_available():
+                try: conn.close()
+                except Exception: pass
+                raise RuntimeError("SSL requested but 'ssl' module unavailable.")
+            if not ssl_certfile:
+                try: conn.close()
+                except Exception: pass
+                raise ValueError("TLS server requires ssl_certfile (and usually ssl_keyfile).")
+            conn = _ssl_wrap_socket(conn, server_side=True, server_hostname=None,
+                                    verify=ssl_verify, ca_file=ssl_ca_file,
+                                    certfile=ssl_certfile, keyfile=ssl_keyfile)
+
+        try:
+            # If auth is required, read preface under effective timeout
+            if require_auth:
+                if not _set_effective_timeout(conn, timeout):
+                    return 0
+                try:
+                    preface = conn.recv(4096)
+                except socket.timeout:
+                    try: conn.sendall(_NO)
+                    except Exception: pass
+                    return 0
+                user, pw = _parse_auth_blob(preface or b"")
+                ok = (user is not None and
+                      (expected_user is None or user == _to_bytes(expected_user)) and
+                      (expected_pass is None or pw == _to_bytes(expected_pass)))
+                try: conn.sendall(_OK if ok else _NO)
+                except Exception: pass
+                if not ok:
+                    return 0
+
+            # Main receive loop with total cap
+            while True:
+                if _time_left() == 0.0:
+                    break
+                if (max_bytes is not None) and (total >= max_bytes):
+                    break
+
+                if not _set_effective_timeout(conn, timeout):
+                    break
+                try:
+                    data = conn.recv(chunk_size)
+                except socket.timeout:
+                    break
+                if not data:
+                    break
+                fileobj.write(data)
+                try: fileobj.flush()
+                except Exception: pass
+                total += len(data)
+        finally:
+            try: conn.shutdown(socket.SHUT_RD)
+            except Exception: pass
+            try: conn.close()
+            except Exception: pass
+    finally:
+        try: srv.close()
+        except Exception: pass
+
+    return total
+
+def send_via_url(fileobj, url, send_from_fileobj):
+    """
+    Use URL options to drive the sender. Returns bytes sent.
+    """
+    parts, o = _parse_net_url(url)
+    use_auth = (o["user"] is not None and o["pw"] is not None) or o["force_auth"]
+
+    return send_from_fileobj(
+        fileobj,
+        o["host"], o["port"], proto=o["proto"],
+        timeout=o["timeout"], chunk_size=o["chunk_size"],
+        use_ssl=o["use_ssl"], ssl_verify=o["ssl_verify"],
+        ssl_ca_file=o["ssl_ca_file"], ssl_certfile=o["ssl_certfile"], ssl_keyfile=o["ssl_keyfile"],
+        server_hostname=o["server_hostname"],
+        auth_user=(o["user"] if use_auth else None),
+        auth_pass=(o["pw"]   if use_auth else None),
+    )
+
+def recv_via_url(fileobj, url, recv_to_fileobj):
+    """
+    Use URL options to drive the receiver. Returns bytes received.
+    """
+    parts, o = _parse_net_url(url)
+    require_auth = (o["user"] is not None and o["pw"] is not None) or o["force_auth"]
+
+    return recv_to_fileobj(
+        fileobj,
+        o["host"], o["port"], proto=o["proto"],
+        timeout=o["timeout"], total_timeout=o["total_timeout"],
+        chunk_size=o["chunk_size"],
+        use_ssl=o["use_ssl"], ssl_verify=o["ssl_verify"],
+        ssl_ca_file=o["ssl_ca_file"], ssl_certfile=o["ssl_certfile"], ssl_keyfile=o["ssl_keyfile"],
+        require_auth=require_auth,
+        expected_user=o["user"], expected_pass=o["pw"],
+    )
