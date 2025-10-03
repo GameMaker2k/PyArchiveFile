@@ -325,7 +325,7 @@ __include_defaults__ = True
 __use_inmemfile__ = False
 __program_name__ = "Py"+__file_format_default__
 __use_env_file__ = True
-__use_ini_file__ = False
+__use_ini_file__ = True
 __use_ini_name__ = "archivefile.ini"
 __use_json_file__ = False
 __use_json_name__ = "archivefile.json"
@@ -2766,9 +2766,9 @@ def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__
 
 
 def ValidateHeaderChecksum(inlist=[], checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
-    archivefileheadercshex = GetHeaderChecksum(
+    infileheadercshex = GetHeaderChecksum(
         inlist, checksumtype, True, formatspecs).lower()
-    return inchecksum.lower() == archivefileheadercshex
+    return inchecksum.lower() == infileheadercshex
 
 
 def ValidateFileChecksum(infile, checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
@@ -9861,10 +9861,10 @@ def unpack_neo(infile, outdir='.', formatspecs=__file_format_multi_dict__, skipc
 def repack_neo(infile, outfile=None, formatspecs=__file_format_dict__, checksumtypes=["crc32", "crc32", "crc32", "crc32"], compression="auto", compression_level=None, returnfp=False):
     return RePackArchiveFile(infile, outfile, "auto", compression, False, compression_level, compressionlistalt, False, 0, 0, checksumtypes, False, [], {}, formatspecs, False, False, returnfp)
 
-def archivefilevalidate_neo(infile, formatspecs=__file_format_multi_dict__, verbose=False, return_details=False, returnfp=False):
+def validate_neo(infile, formatspecs=__file_format_multi_dict__, verbose=False, return_details=False, returnfp=False):
     return ArchiveFileValidate(infile, "auto", formatspecs, False, verbose, returnfp)
 
-def archivefilelistfiles_neo(infile, formatspecs=__file_format_multi_dict__, advanced=False, include_dirs=True, returnfp=False):
+def listfiles_neo(infile, formatspecs=__file_format_multi_dict__, advanced=False, include_dirs=True, returnfp=False):
     return ArchiveFileListFiles(infile, "auto", 0, 0, False, formatspecs, False, True, advanced, returnfp)
 
 def convert_foreign_to_neo(infile, outfile=None, formatspecs=__file_format_multi_dict__, checksumtypes=["crc32", "crc32", "crc32", "crc32"], compression="auto", compression_level=None, returnfp=False):
@@ -10836,7 +10836,7 @@ def upload_file_to_internet_file(ifp, url):
 def upload_file_to_internet_compress_file(ifp, url, compression="auto", compressionlevel=None, compressionuselist=compressionlistalt, formatspecs=__file_format_dict__):
     fp = CompressOpenFileAlt(
         fp, compression, compressionlevel, compressionuselist, formatspecs)
-    if(not archivefileout):
+    if(not outfileretrn):
         return False
     fp.seek(0, 0)
     return upload_file_to_internet_file(fp, outfile)
@@ -10862,14 +10862,14 @@ def upload_file_to_internet_compress_string(ifp, url, compression="auto", compre
     internetfileo = MkTempFile(ifp)
     fp = CompressOpenFileAlt(
         internetfileo, compression, compressionlevel, compressionuselist, formatspecs)
-    if(not archivefileout):
+    if(not outfileretrn):
         return False
     fp.seek(0, 0)
     return upload_file_to_internet_file(fp, outfile)
 
 
 # ---------- Core: send / recv ----------
-def send_from_fileobj(fileobj, host, port, proto="tcp", timeout=None,
+def send_from_fileobj(fileobj, host, port=3124, proto="tcp", timeout=None,
                       chunk_size=65536,
                       use_ssl=False, ssl_verify=True, ssl_ca_file=None,
                       ssl_certfile=None, ssl_keyfile=None, server_hostname=None,
@@ -11136,7 +11136,7 @@ def send_from_fileobj(fileobj, host, port, proto="tcp", timeout=None,
     return total
 
 
-def recv_to_fileobj(fileobj, host="", port=0, proto="tcp", timeout=None,
+def recv_to_fileobj(fileobj, host="", port=3124, proto="tcp", timeout=None,
                     max_bytes=None, chunk_size=65536, backlog=1,
                     use_ssl=False, ssl_verify=True, ssl_ca_file=None,
                     ssl_certfile=None, ssl_keyfile=None,
