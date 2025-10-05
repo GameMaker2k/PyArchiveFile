@@ -397,7 +397,7 @@ __version_date_info__ = (2025, 10, 1, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id: 0648f57aa9e81ed48e68f5f42de5c4565b870555 $"
+__revision_id__ = "$Id$"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
