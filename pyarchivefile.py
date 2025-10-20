@@ -610,7 +610,7 @@ __version_date_info__ = (2025, 10, 1, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id: 20710d76752a16aa2f472536ee2954c0cd49389a $"
+__revision_id__ = "$Id: 2855200b33e29201ad0c5e5fc6da5347b404c16c $"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -9030,6 +9030,14 @@ def UncompressFileAlt(fp, formatspecs=__file_format_multi_dict__, filestart=0,
     """
     if not hasattr(fp, "read"):
         return False
+
+    # If caller already gave us a FileLikeAdapter => honor it and return it.
+    if isinstance(fp, FileLikeAdapter):
+        try:
+            fp.write_through = True
+        except Exception:
+            pass
+        return fp
 
     # Detect format on the fileobj at filestart
     compresscheck = CheckCompressionType(fp, formatspecs, filestart, False)
