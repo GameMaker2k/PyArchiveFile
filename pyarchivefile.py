@@ -610,7 +610,7 @@ __version_date_info__ = (2025, 10, 1, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id: 9573751580e57567307914cdb635c44931f78639 $"
+__revision_id__ = "$Id$"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -1743,7 +1743,7 @@ def DetectTarBombFoxFileArray(listarrayfiles,
                               symlink_policy="escape-only",  # 'escape-only' | 'deny' | 'single-folder-only'
                               to_text=None):
     """
-    Detect 'tarbomb-like' archives from FoxFileToArray/TarFileToArray dicts.
+    Detect 'tarbomb-like' archives from dicts.
 
     Returns dict with:
       - is_tarbomb, reasons, total_members, top_level_entries, top_level_files_count,
