@@ -610,7 +610,7 @@ __version_date_info__ = (2025, 10, 1, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id: df415740ccda16ca0395e86ac4d28cf73a3eb9bf $"
+__revision_id__ = "$Id: 9573751580e57567307914cdb635c44931f78639 $"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -2780,6 +2780,21 @@ class ZlibFile(object):
         bio = io.BytesIO(bytes(data) if not isinstance(data, bytes) else data)
         return cls(fileobj=bio, mode=mode, **kw)
 
+    # compatibility aliases for unwrapping utilities
+    @property
+    def fileobj(self):
+        return self.file
+
+    @property
+    def myfileobj(self):
+        return self.file
+
+    # if some code expects ._fp to be “the stream itself”:
+    @property
+    def _fp(self):
+        # OR return self.file if callers intend the raw file
+        return self
+
 # ---------- Top-level helpers (optional) ----------
 def decompress_bytes(blob, **kw):
     """
@@ -3227,6 +3242,21 @@ class GzipFile(object):
             raise TypeError("from_bytes() expects a bytes-like object")
         bio = io.BytesIO(bytes(data) if not isinstance(data, bytes) else data)
         return cls(fileobj=bio, mode=mode, **kw)
+
+    # compatibility aliases for unwrapping utilities
+    @property
+    def fileobj(self):
+        return self.file
+
+    @property
+    def myfileobj(self):
+        return self.file
+
+    # if some code expects ._fp to be “the stream itself”:
+    @property
+    def _fp(self):
+        # OR return self.file if callers intend the raw file
+        return self
 
 
 # ---------- Top-level helpers ----------
@@ -3749,6 +3779,21 @@ class LzopFile(object):
             raise TypeError("from_bytes() expects a bytes-like object")
         bio = io.BytesIO(bytes(data) if not isinstance(data, bytes) else data)
         return cls(fileobj=bio, mode=mode, **kw)
+
+    # compatibility aliases for unwrapping utilities
+    @property
+    def fileobj(self):
+        return self.file
+
+    @property
+    def myfileobj(self):
+        return self.file
+
+    # if some code expects ._fp to be “the stream itself”:
+    @property
+    def _fp(self):
+        # OR return self.file if callers intend the raw file
+        return self
 
 
 # ---------- Top-level helpers ----------
@@ -5882,7 +5927,6 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
                 infp.seek(oldinfppos, 0)
                 ArchiveList.append(ReadFileDataWithContentToArray(infp, currentinfilepos, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, informatspecs, seektoend))
                 currentinfilepos = infp.tell()
-            infp.close()
             currentfilepos = fp.tell()
     return ArchiveList
 
@@ -8903,7 +8947,10 @@ def UncompressFileAlt(fp, formatspecs=__file_format_multi_dict__, filestart=0,
         return False
 
     # Always operate on the raw source for probe/wrap
-    src = getattr(fp, "_fp", fp)
+    if hasattr(fp, "_fp"):
+        src = getattr(fp, "_fp", fp)
+    else:
+        src = fp
 
     # Probe at filestart using RAW handle
     try:
