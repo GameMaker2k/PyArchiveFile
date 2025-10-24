@@ -355,6 +355,24 @@ def get_default_threads():
         # os.cpu_count() might not be available in some environments
         return 1
 
+def add_format(reg, key, magic, ext, name=None, ver="001",
+               new_style=True, use_advanced_list=True, use_alt_inode=False, delim="\x00"):
+    if key in reg:
+        return
+    magic_bytes = magic.encode("utf-8")
+    reg[key] = {
+        "format_name": name or key,
+        "format_magic": magic,
+        "format_len": len(magic_bytes),
+        "format_hex": magic_bytes.hex(),
+        "format_delimiter": delim,
+        "format_ver": ver,
+        "new_style": new_style,
+        "use_advanced_list": use_advanced_list,
+        "use_alt_inode": use_alt_inode,
+        "format_extension": ext,
+    }
+
 __upload_proto_support__ = "^(http|https|ftp|ftps|sftp|scp|tcp|udp)://"
 __download_proto_support__ = "^(http|https|ftp|ftps|sftp|scp|tcp|udp)://"
 __use_pysftp__ = False
@@ -585,12 +603,12 @@ elif __use_json_file__ and not os.path.exists(__config_file__):
     __include_defaults__ = True
 if not __use_ini_file__ and not __include_defaults__:
     __include_defaults__ = True
-if(__include_defaults__):
-    if("ArchiveFile" not in __file_format_multi_dict__):
-        __file_format_multi_dict__.update( { 'ArchiveFile': {'format_name': "ArchiveFile", 'format_magic': "ArchiveFile", 'format_len': 11, 'format_hex': "4172636869766546696c65", 'format_delimiter': "\x00", 'format_ver': "001", 'new_style': True, 'use_advanced_list': True, 'use_alt_inode': False, 'format_extension': ".arc" } } )
-    if("NeoFile" not in __file_format_multi_dict__):
-        __file_format_multi_dict__.update( { 'NeoFile': {'format_name': "NeoFile", 'format_magic': "NeoFile", 'format_len': 7, 'format_hex': "4e656f46696c65", 'format_delimiter': "\x00", 'format_ver': "001", 'new_style': True, 'use_advanced_list': True, 'use_alt_inode': False, 'format_extension': ".neo" } } )
-if(__file_format_default__ not in __file_format_multi_dict__):
+if __include_defaults__:
+    add_format(__file_format_multi_dict__, "ArchiveFile", "ArchiveFile", ".arc", "ArchiveFile")
+    add_format(__file_format_multi_dict__, "NeoFile",     "NeoFile",     ".neo", "NeoFile")
+
+# Pick a default if current default key is not present
+if __file_format_default__ not in __file_format_multi_dict__:
     __file_format_default__ = next(iter(__file_format_multi_dict__))
 __file_format_name__ = __file_format_multi_dict__[__file_format_default__]['format_name']
 __file_format_magic__ = __file_format_multi_dict__[__file_format_default__]['format_magic']
