@@ -5932,9 +5932,9 @@ def ReadInMultipleFileWithContentToArray(infile, fmttype="auto", filestart=0, se
         pass
     else:
         infile = [infile]
-    outretval = {}
+    outretval = []
     for curfname in infile:
-        outretval[curfname] = ReadInFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        outretval.append(ReadInFileWithContentToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend))
     return outretval
 
 def ReadInMultipleFilesWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -6013,35 +6013,48 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         outfsize = fp.tell()
         fp.seek(filestart, 0)
         currentfilepos = fp.tell()
+    if(not isinstance(infile, FileLikeAdapter)):
+
+        # For uncompressed: optional mmap
+        mm = None
+        try:
+            base = _extract_base_fp(fp)
+            if base is not None:
+                mm = mmap.mmap(base.fileno(), 0, access=mmap.ACCESS_READ if "r" in mode else mmap.ACCESS_WRITE)
+        except Exception:
+            mm = None  # fallback to normal file stream
+        readfp = FileLikeAdapter(fp, mode="rb", mm=mm)
+    else:
+        readfp = fp
     ArchiveList = []
     while True:
         if currentfilepos >= outfsize:   # stop when function signals False
             break
-        oldfppos = fp.tell()
-        compresscheck = CheckCompressionType(fp, formatspecs, currentfilepos, False)
+        oldfppos = readfp.tell()
+        compresscheck = CheckCompressionType(readfp, formatspecs, currentfilepos, False)
         if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
             pass
         else:
-            checkcompressfile = CheckCompressionSubType(fp, formatspecs, currentfilepos, False)
+            checkcompressfile = CheckCompressionSubType(readfp, formatspecs, currentfilepos, False)
             if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
                 pass
             else:
                 break
-        fp.seek(oldfppos, 0)
+        readfp.seek(oldfppos, 0)
         if(compresscheck in formatspecs):
             if currentfilepos >= outfsize:   # stop when function signals False
                 break
-            oldfppos = fp.tell()
-            compresscheck = CheckCompressionType(fp, formatspecs, currentfilepos, False)
+            oldfppos = readfp.tell()
+            compresscheck = CheckCompressionType(readfp, formatspecs, currentfilepos, False)
             if(IsNestedDict(formatspecs) and compresscheck in formatspecs):
                 informatspecs = formatspecs[compresscheck]
             else:
                 break
-            fp.seek(oldfppos, 0)
-            ArchiveList.append(ReadFileDataWithContentToList(fp, currentfilepos, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, informatspecs, seektoend))
-            currentfilepos = fp.tell()
+            readfp.seek(oldfppos, 0)
+            ArchiveList.append(ReadFileDataWithContentToList(readfp, currentfilepos, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, informatspecs, seektoend))
+            currentfilepos = readfp.tell()
         else:
-            infp = UncompressFileAlt(fp, formatspecs, currentfilepos)
+            infp = UncompressFileAlt(readfp, formatspecs, currentfilepos)
             infp.seek(0, 0)
             currentinfilepos = infp.tell()
             try:
@@ -6064,8 +6077,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
                 infp.seek(oldinfppos, 0)
                 ArchiveList.append(ReadFileDataWithContentToList(infp, currentinfilepos, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, informatspecs, seektoend))
                 currentinfilepos = infp.tell()
-            infp.close()
-            currentfilepos = fp.tell()
+            currentfilepos = readfp.tell()
     return ArchiveList
 
 
@@ -6076,7 +6088,7 @@ def ReadInMultipleFileWithContentToList(infile, fmttype="auto", filestart=0, see
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        outretval[curfname] = ReadInFileWithContentToList(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend)
+        outretval.append(ReadInFileWithContentToList(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend))
     return outretval
 
 def ReadInMultipleFilesWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False):
@@ -10500,9 +10512,9 @@ def MultipleArchiveFileToArray(infile, fmttype="auto", filestart=0, seekstart=0,
         pass
     else:
         infile = [infile]
-    outretval = {}
+    outretval = []
     for curfname in infile:
-        outretval[curfname] = ArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp)
+        outretval.append(ArchiveFileToArray(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, seektoend, returnfp))
     return outretval
 
 def MultipleArchiveFilesToArray(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, returnfp=False):
