@@ -10749,7 +10749,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
     if jsondata is None:
         jsondata = {}
     if formatspecs is None:
-        formatspecs = __file_format_dict__
+        formatspecs = __file_format_multi_dict__
 
     # ---------- Input handling ----------
     if isinstance(infile, dict):
