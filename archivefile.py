@@ -235,7 +235,7 @@ if active_action:
             input_file = tempout
             if(not tmpout):
                 sys.exit(1)
-        fvalid = pyarchivefile.ArchiveFileValidate(
+        fvalid = pyarchivefile.StackedArchiveFileValidate(
             input_file, "auto", 0, fnamedict, False, getargs.verbose, False)
         if(not getargs.verbose):
             import sys
