@@ -2,33 +2,33 @@
     "config": {
         "default": "ArchiveFile",
         "proname": "PyArchiveFile",
-        "includedef": "true",
-        "inmemfile": "true",
-        "usespoolfile": "false",
-        "inmemfile": "8388608"
+        "includedef": true,
+        "inmemfile": true,
+        "usespoolfile": false,
+        "inmemfile": 8388608
     },
     "ArchiveFile": {
-        "len": "11",
+        "len": 11,
         "hex": "4172636869766546696c65",
         "ver": "001",
         "name": "ArchiveFile",
         "magic": "ArchiveFile",
         "delimiter": "\u0000",
         "extension": ".arc",
-        "newstyle": "true",
-        "advancedlist": "true",
-        "altinode": "true"
+        "newstyle": true,
+        "advancedlist": true,
+        "altinode": true
     },
     "NeoFile": {
-        "len": "7",
+        "len": 7,
         "hex": "4e656f46696c65",
         "ver": "001",
         "name": "NeoFile",
         "magic": "NeoFile",
         "delimiter": "\u0000",
         "extension": ".neo",
-        "newstyle": "true",
-        "advancedlist": "true",
-        "altinode": "true"
+        "newstyle": true,
+        "advancedlist": true,
+        "altinode": true
     }
 }
