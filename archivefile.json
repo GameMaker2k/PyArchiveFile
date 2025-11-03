@@ -3,7 +3,9 @@
         "default": "ArchiveFile",
         "proname": "PyArchiveFile",
         "includedef": "true",
-        "inmemfile": "true"
+        "inmemfile": "true",
+        "usespoolfile": "false",
+        "inmemfile": "8388608"
     },
     "ArchiveFile": {
         "len": "11",
