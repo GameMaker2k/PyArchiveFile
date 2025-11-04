@@ -91,57 +91,37 @@ __version_date_plusrc__ = pyarchivefile.__version_date_plusrc__
 __version__ = pyarchivefile.__version__
 
 # Initialize the argument parser
-argparser = argparse.ArgumentParser(
-    description="Manipulate archive files.", conflict_handler="resolve", add_help=True)
+argparser = argparse.ArgumentParser(description="Manipulate archive files.", conflict_handler="resolve", add_help=True)
 
 # Version information
-argparser.add_argument("-V", "--version", action="version",
-                       version=__program_name__ + " " + __version__)
+argparser.add_argument("-V", "--version", action="version", version=__program_name__ + " " + __version__)
 # Input and output specifications
-argparser.add_argument(
-    "-i", "--input", nargs="+", help="Specify the file(s) to concatenate or the archive file to extract.", required=True)
-argparser.add_argument("-o", "--output", default=None,
-                       help="Specify the name for the extracted or output archive files.")
+argparser.add_argument("-i", "--input", nargs="+", help="Specify the file(s) to concatenate or the archive file to extract.", required=True)
+argparser.add_argument("-o", "--output", default=None, help="Specify the name for the extracted or output archive files.")
 # Operations
-argparser.add_argument("-c", "--create", action="store_true",
-                       help="Perform only the concatenation operation.")
-argparser.add_argument("-e", "--extract", action="store_true",
-                       help="Perform only the extraction operation.")
-argparser.add_argument("-t", "--convert", action="store_true",
-                       help="Convert a tar/zip/rar/7zip file to a archive file.")
-argparser.add_argument("-r", "--repack", action="store_true",
-                       help="Re-concatenate files, fixing checksum errors if any.")
+argparser.add_argument("-c", "--create", action="store_true", help="Perform only the concatenation operation.")
+argparser.add_argument("-e", "--extract", action="store_true", help="Perform only the extraction operation.")
+argparser.add_argument("-t", "--convert", action="store_true", help="Convert a tar/zip/rar/7zip file to a archive file.")
+argparser.add_argument("-r", "--repack", action="store_true", help="Re-concatenate files, fixing checksum errors if any.")
+argparser.add_argument("-S", "--filestart", type=int, default=0, help="Start reading file at.")
 # File manipulation options
-argparser.add_argument(
-    "-F", "--format", default="auto", help="Specify the format to use.")
-argparser.add_argument(
-    "-D", "--delimiter", default=__file_format_dict__['format_delimiter'], help="Specify the delimiter to use.")
-argparser.add_argument(
-    "-m", "--formatver", default=__file_format_dict__['format_ver'], help="Specify the format version.")
-argparser.add_argument("-l", "--list", action="store_true",
-                       help="List files included in the archive file.")
+argparser.add_argument("-F", "--format", default="auto", help="Specify the format to use.")
+argparser.add_argument("-D", "--delimiter", default=__file_format_dict__['format_delimiter'], help="Specify the delimiter to use.")
+argparser.add_argument("-m", "--formatver", default=__file_format_dict__['format_ver'], help="Specify the format version.")
+argparser.add_argument("-l", "--list", action="store_true", help="List files included in the archive file.")
 # Compression options
-argparser.add_argument("-P", "--compression", default="auto",
-                       help="Specify the compression method to use for concatenation.")
-argparser.add_argument("-L", "--level", default=None,
-                       help="Specify the compression level for concatenation.")
-argparser.add_argument("-W", "--wholefile", action="store_true",
-                       help="Whole file compression method to use for concatenation.")
+argparser.add_argument("-P", "--compression", default="auto", help="Specify the compression method to use for concatenation.")
+argparser.add_argument("-L", "--level", default=None, help="Specify the compression level for concatenation.")
+argparser.add_argument("-W", "--wholefile", action="store_true", help="Whole file compression method to use for concatenation.")
 # Checksum and validation
-argparser.add_argument("-v", "--validate", action="store_true",
-                       help="Validate archive file checksums.")
-argparser.add_argument("-C", "--checksum", default="crc32",
-                       help="Specify the type of checksum to use. The default is crc32.")
-argparser.add_argument("-s", "--skipchecksum", action="store_true",
-                       help="Skip the checksum check of files.")
+argparser.add_argument("-v", "--validate", action="store_true", help="Validate archive file checksums.")
+argparser.add_argument("-C", "--checksum", default="crc32", help="Specify the type of checksum to use. The default is crc32.")
+argparser.add_argument("-s", "--skipchecksum", action="store_true", help="Skip the checksum check of files.")
 # Permissions and metadata
-argparser.add_argument("-p", "--preserve", action="store_false",
-                       help="Do not preserve permissions and timestamps of files.")
+argparser.add_argument("-p", "--preserve", action="store_false", help="Do not preserve permissions and timestamps of files.")
 # Miscellaneous
-argparser.add_argument("-d", "--verbose", action="store_true",
-                       help="Enable verbose mode to display various debugging information.")
-argparser.add_argument("-T", "--text", action="store_true",
-                       help="Read file locations from a text file.")
+argparser.add_argument("-d", "--verbose", action="store_true", help="Enable verbose mode to display various debugging information.")
+argparser.add_argument("-T", "--text", action="store_true", help="Read file locations from a text file.")
 # Parse the arguments
 getargs = argparser.parse_args()
 
@@ -194,7 +174,7 @@ if active_action:
                 sys.exit(1)
         else:
             pyarchivefile.RePackArchiveFile(input_file, getargs.output, getargs.compression, getargs.wholefile, getargs.level, pyarchivefile.compressionlistalt,
-                                        False, 0, 0, 0, [getargs.checksum, getargs.checksum, getargs.checksum, getargs.checksum], getargs.skipchecksum, [], {}, fnamedict, getargs.verbose, False)
+                                        False, getargs.filestart, 0, 0, [getargs.checksum, getargs.checksum, getargs.checksum, getargs.checksum], getargs.skipchecksum, [], {}, fnamedict, getargs.verbose, False)
     elif active_action == 'extract':
         if getargs.convert:
             checkcompressfile = pyarchivefile.CheckCompressionSubType(
@@ -208,20 +188,20 @@ if active_action:
             if(not tmpout):
                 sys.exit(1)
             input_file = tempout
-        pyarchivefile.UnPackArchiveFile(input_file, getargs.output, False, 0, 0, 0, getargs.skipchecksum,
+        pyarchivefile.UnPackArchiveFile(input_file, getargs.output, False, getargs.filestart, 0, 0, getargs.skipchecksum,
                                     fnamedict, getargs.verbose, getargs.preserve, getargs.preserve, False, False)
     elif active_action == 'list':
         if getargs.convert:
             checkcompressfile = pyarchivefile.CheckCompressionSubType(
                 input_file, fnamedict, 0, True)
             if((pyarchivefile.IsNestedDict(fnamedict) and checkcompressfile in fnamedict) or (pyarchivefile.IsSingleDict(fnamedict) and checkcompressfile==fnamedict['format_magic'])):
-                tmpout = pyarchivefile.ArchiveFileListFiles(input_file, "auto", 0, 0, 0, getargs.skipchecksum, fnamedict, False, getargs.verbose, False, False)
+                tmpout = pyarchivefile.ArchiveFileListFiles(input_file, "auto", getargs.filestart, 0, 0, getargs.skipchecksum, fnamedict, False, getargs.verbose, False, False)
             else:
                 tmpout = pyarchivefile.InFileListFiles(input_file, getargs.verbose, fnamedict, False, False, False)
             if(not tmpout):
                 sys.exit(1)
         else:
-            pyarchivefile.ArchiveFileListFiles(input_file, "auto", 0, 0, 0, getargs.skipchecksum, fnamedict, False, getargs.verbose, False, False)
+            pyarchivefile.ArchiveFileListFiles(input_file, "auto", getargs.filestart, 0, 0, getargs.skipchecksum, fnamedict, False, getargs.verbose, False, False)
     elif active_action == 'validate':
         if getargs.convert:
             checkcompressfile = pyarchivefile.CheckCompressionSubType(
