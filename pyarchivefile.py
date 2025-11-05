@@ -221,12 +221,6 @@ if sys.version_info[0] == 2:
     except (NameError, AttributeError):
         pass
 
-# CRC32 import
-try:
-    from zlib import crc32
-except ImportError:
-    from binascii import crc32
-
 # Define FileNotFoundError for Python 2
 try:
     FileNotFoundError
@@ -261,9 +255,7 @@ py7zr_support = False
 try:
     import py7zr
     py7zr_support = True
-except ImportError:
-    pass
-except OSError:
+except (ImportError, OSError):
     pass
 
 # TAR file checking
@@ -289,9 +281,7 @@ haveparamiko = False
 try:
     import paramiko
     haveparamiko = True
-except ImportError:
-    pass
-except OSError:
+except (ImportError, OSError):
     pass
 
 # PySFTP support
@@ -299,9 +289,7 @@ havepysftp = False
 try:
     import pysftp
     havepysftp = True
-except ImportError:
-    pass
-except OSError:
+except (ImportError, OSError):
     pass
 
 # Add the mechanize import check
@@ -309,9 +297,7 @@ havemechanize = False
 try:
     import mechanize
     havemechanize = True
-except ImportError:
-    pass
-except OSError:
+except (ImportError, OSError):
     pass
 
 # Requests support
@@ -321,9 +307,7 @@ try:
     haverequests = True
     import urllib3
     logging.getLogger("urllib3").setLevel(logging.WARNING)
-except ImportError:
-    pass
-except OSError:
+except (ImportError, OSError):
     pass
 
 # HTTPX support
@@ -333,9 +317,7 @@ try:
     havehttpx = True
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-except ImportError:
-    pass
-except OSError:
+except (ImportError, OSError):
     pass
 
 # HTTP and URL parsing
@@ -3630,53 +3612,6 @@ def crc_generic(msg, width, poly, init, xorout, refin, refout):
         crc = _reflect(crc, width)
     return (crc ^ xorout) & mask
 
-# =========================
-#       Named CRCs
-# =========================
-# CRC-16/ANSI (ARC/MODBUS family with init=0xFFFF by default)
-def crc16_ansi(msg, initial_value=0xFFFF):
-    return crc_generic(msg, 16, 0x8005, initial_value & 0xFFFF, 0x0000, True, True)
-
-def crc16_ibm(msg, initial_value=0xFFFF):
-    return crc16_ansi(msg, initial_value)
-
-def crc16(msg):
-    return crc16_ansi(msg, 0xFFFF)
-
-def crc16_ccitt(msg, initial_value=0xFFFF):
-    # CCITT-FALSE
-    return crc_generic(msg, 16, 0x1021, initial_value & 0xFFFF, 0x0000, False, False)
-
-def crc16_x25(msg):
-    return crc_generic(msg, 16, 0x1021, 0xFFFF, 0xFFFF, True, True)
-
-def crc16_kermit(msg):
-    return crc_generic(msg, 16, 0x1021, 0x0000, 0x0000, True, True)
-
-def crc64_ecma(msg, initial_value=0x0000000000000000):
-    return crc_generic(msg, 64, 0x42F0E1EBA9EA3693,
-                       initial_value & 0xFFFFFFFFFFFFFFFF,
-                       0x0000000000000000, False, False)
-
-def crc64_iso(msg, initial_value=0xFFFFFFFFFFFFFFFF):
-    return crc_generic(msg, 64, 0x000000000000001B,
-                       initial_value & 0xFFFFFFFFFFFFFFFF,
-                       0xFFFFFFFFFFFFFFFF, True, True)
-
-# =========================
-#  Incremental CRC context
-# =========================
-CRCSpec = namedtuple("CRCSpec", "width poly init xorout refin refout")
-
-_CRC_SPECS = {
-    "crc16_ansi":  CRCSpec(16, 0x8005, 0xFFFF, 0x0000, True,  True),
-    "crc16_ccitt": CRCSpec(16, 0x1021, 0xFFFF, 0x0000, False, False),
-    "crc16_x25":   CRCSpec(16, 0x1021, 0xFFFF, 0xFFFF, True,  True),
-    "crc16_kermit":CRCSpec(16, 0x1021, 0x0000, 0x0000, True,  True),
-    "crc64_ecma":  CRCSpec(64, 0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, False, False),
-    "crc64_iso":   CRCSpec(64, 0x000000000000001B, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, True,  True),
-}
-
 # --- helpers --------------------------------------------------------------
 
 try:
@@ -3717,238 +3652,41 @@ def _bytes_to_int(b):
         value = (value << 8) | ch
     return value
 
-
-# --- your existing CRCContext (unchanged) ---------------------------------
-
-class CRCContext(object):
-    __slots__ = ("spec", "table", "mask", "shift", "crc")
-
-    def __init__(self, spec):
-        self.spec  = spec
-        self.table = _build_table(spec.width, spec.poly, spec.refin)
-        self.mask  = (1 << spec.width) - 1
-        self.shift = spec.width - 8
-        self.crc   = spec.init & self.mask
-
-    def update(self, data):
-        if not isinstance(data, (bytes, bytearray, memoryview)):
-            data = bytes(bytearray(data))
-        buf = _mv_tobytes(memoryview(data))
-        if self.spec.refin:
-            c = self.crc
-            tbl = self.table
-            for b in buf:
-                if not isinstance(b, int):  # Py2
-                    b = ord(b)
-                c = tbl[(c ^ b) & 0xFF] ^ (c >> 8)
-            self.crc = c & self.mask
-        else:
-            c = self.crc
-            tbl = self.table
-            sh  = self.shift
-            msk = self.mask
-            for b in buf:
-                if not isinstance(b, int):
-                    b = ord(b)
-                c = tbl[((c >> sh) ^ b) & 0xFF] ^ ((c << 8) & msk)
-            self.crc = c & msk
-        return self
-
-    def digest_int(self):
-        c = self.crc
-        if self.spec.refout ^ self.spec.refin:
-            c = _reflect(c, self.spec.width)
-        return (c ^ self.spec.xorout) & self.mask
-
-    def hexdigest(self):
-        width_hex = (self.spec.width + 3) // 4
-        return format(self.digest_int(), "0{}x".format(width_hex)).lower()
-
-
-# --- hashlib-backed implementation ---------------------------------------
-
-class _HashlibCRCWrapper(object):
-    """
-    Wrap a hashlib object to present the same interface as CRCContext
-    (update, digest_int, hexdigest).
-
-    Assumes the hashlib algorithm already implements the exact CRC
-    specification (refin/refout/xorout/etc.).
-    """
-    __slots__ = ("_h", "spec", "mask", "width_hex")
-
-    def __init__(self, algo_name, spec):
-        self._h = hashlib.new(algo_name)
-        self.spec = spec
-        self.mask = (1 << spec.width) - 1
-        self.width_hex = (spec.width + 3) // 4
-
-    def update(self, data):
-        self._h.update(_coerce_bytes(data))
-        return self
-
-    def digest_int(self):
-        # Convert final digest bytes to an integer and mask to width
-        value = _bytes_to_int(self._h.digest())
-        return value & self.mask
-
-    def hexdigest(self):
-        h = self._h.hexdigest().lower()
-        # Normalize to the same number of hex digits as CRCContext
-        if len(h) < self.width_hex:
-            h = ("0" * (self.width_hex - len(h))) + h
-        elif len(h) > self.width_hex:
-            h = h[-self.width_hex:]
-        return h
-
-
-# --- public class: choose hashlib or fallback -----------------------------
-
-class CRC(object):
-    """
-    CRC wrapper that uses hashlib if available, otherwise falls back to
-    the pure-Python CRCContext.
-
-    spec.hashlib_name (preferred) or spec.name is used as the hashlib
-    algorithm name, e.g. 'crc32', 'crc32c', etc.
-    """
-
-    __slots__ = ("spec", "_impl")
-
-    def __init__(self, spec):
-        self.spec = spec
-
-        algo_name = getattr(spec, "hashlib_name", None) or getattr(spec, "name", None)
-        impl = None
-
-        if algo_name and algo_name in _ALGORITHMS_AVAILABLE:
-            # Use hashlib-backed implementation
-            impl = _HashlibCRCWrapper(algo_name, spec)
-        else:
-            # Fallback to your pure-Python implementation
-            impl = CRCContext(spec)
-
-        self._impl = impl
-
-    def update(self, data):
-        self._impl.update(data)
-        return self
-
-    def digest_int(self):
-        return self._impl.digest_int()
-
-    def hexdigest(self):
-        return self._impl.hexdigest()
-
-def crc_context_from_name(name_norm):
-    spec = _CRC_SPECS.get(name_norm)
-    if spec is None:
-        raise KeyError("Unknown CRC spec: {}".format(name_norm))
-    return CRCContext(spec)
-
-# =========================
-#     Dispatch helpers
-# =========================
-_CRC_ALIASES = {
-    # keep your historical behaviors
-    "crc16": "crc16_ansi",
-    "crc16_ibm": "crc16_ansi",
-    "crc16_ansi": "crc16_ansi",
-    "crc16_modbus": "crc16_ansi",
-    "crc16_ccitt": "crc16_ccitt",
-    "crc16_ccitt_false": "crc16_ccitt",
-    "crc16_x25": "crc16_x25",
-    "crc16_kermit": "crc16_kermit",
-    "crc64": "crc64_iso",
-    "crc64_iso": "crc64_iso",
-    "crc64_ecma": "crc64_ecma",
-    "adler32": "adler32",
-    "crc32": "crc32",
-}
-
-_CRC_WIDTH = {
-    "crc16_ansi": 16,
-    "crc16_ccitt": 16,
-    "crc16_x25": 16,
-    "crc16_kermit": 16,
-    "crc64_iso": 64,
-    "crc64_ecma": 64,
-    "adler32": 32,
-    "crc32": 32,
-}
-
-def _crc_compute(algo_key, data_bytes):
-    if algo_key == "crc16_ansi":
-        return crc16_ansi(data_bytes) & 0xFFFF
-    if algo_key == "crc16_ccitt":
-        return crc16_ccitt(data_bytes) & 0xFFFF
-    if algo_key == "crc16_x25":
-        return crc16_x25(data_bytes) & 0xFFFF
-    if algo_key == "crc16_kermit":
-        return crc16_kermit(data_bytes) & 0xFFFF
-    if algo_key == "crc64_iso":
-        return crc64_iso(data_bytes) & 0xFFFFFFFFFFFFFFFF
-    if algo_key == "crc64_ecma":
-        return crc64_ecma(data_bytes) & 0xFFFFFFFFFFFFFFFF
-    if algo_key == "adler32":
-        return zlib.adler32(data_bytes) & 0xFFFFFFFF
-    if algo_key == "crc32":
-        return zlib.crc32(data_bytes) & 0xFFFFFFFF
-    raise KeyError(algo_key)
-
 try:
     hashlib_guaranteed
 except NameError:
     hashlib_guaranteed = set(a.lower() for a in hashlib.algorithms_available)
 
-def CheckSumSupportAlt(name, guaranteed):
-    try:
-        return name.lower() in guaranteed
-    except Exception:
-        return False
-
 # =========================
 #     Public checksum API
 # =========================
-def GetHeaderChecksum(inlist=None, checksumtype="crc32", encodedata=True, formatspecs=__file_format_dict__):
+def GetHeaderChecksum(inlist=None, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
     """
     Serialize header fields (list/tuple => joined with delimiter + trailing delimiter;
     or a single field) and compute the requested checksum. Returns lowercase hex.
     """
-    checksumtype_norm = (checksumtype or "crc32").lower()
-    algo_key = _CRC_ALIASES.get(checksumtype_norm, checksumtype_norm)
+    algo_key = (checksumtype or "md5").lower()
 
-    delim = formatspecs.get('format_delimiter', u"\0")
-    hdr_bytes = _serialize_header_fields(inlist or [], delim)
-    if encodedata and not isinstance(hdr_bytes, (bytes, bytearray, memoryview)):
-        hdr_bytes = _to_bytes(hdr_bytes)
-    hdr_bytes = bytes(hdr_bytes)
-
-    if algo_key in _CRC_WIDTH:
-        n = _crc_compute(algo_key, hdr_bytes)
-        return _hex_pad(n, _CRC_WIDTH[algo_key])
-
-    if CheckSumSupportAlt(algo_key, hashlib_guaranteed):
+    if CheckSumSupport(algo_key, hashlib_guaranteed):
         h = hashlib.new(algo_key)
         h.update(hdr_bytes)
         return h.hexdigest().lower()
 
     return "0"
 
-def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__file_format_dict__):
+def GetFileChecksum(instr, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
     """
     Accepts bytes/str/file-like.
       - Hashlib algos: streamed in 1 MiB chunks.
       - CRC algos (crc16_ansi/ccitt/x25/kermit, crc64_iso/ecma): streamed via CRCContext for file-like.
       - Falls back to one-shot for non-file-like inputs.
     """
-    checksumtype_norm = (checksumtype or "crc32").lower()
-    algo_key = _CRC_ALIASES.get(checksumtype_norm, checksumtype_norm)
+    algo_key = (checksumtype or "md5").lower()
 
     # file-like streaming
     if hasattr(instr, "read"):
         # hashlib
-        if algo_key not in _CRC_SPECS and CheckSumSupportAlt(algo_key, hashlib_guaranteed):
+        if CheckSumSupport(algo_key, hashlib_guaranteed):
             h = hashlib.new(algo_key)
             while True:
                 chunk = instr.read(1 << 20)
@@ -3959,18 +3697,6 @@ def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__
                 h.update(chunk)
             return h.hexdigest().lower()
 
-        # CRC streaming via context
-        if algo_key in _CRC_SPECS:
-            ctx = crc_context_from_name(algo_key)
-            while True:
-                chunk = instr.read(1 << 20)
-                if not chunk:
-                    break
-                if not isinstance(chunk, (bytes, bytearray, memoryview)):
-                    chunk = bytes(bytearray(chunk))
-                ctx.update(chunk)
-            return ctx.hexdigest()
-
         # not known streaming algo: fallback to one-shot bytes
         data = instr.read()
         if not isinstance(data, (bytes, bytearray, memoryview)):
@@ -3980,169 +3706,36 @@ def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__
         data = bytes(data)
 
     # one-shot
-    if algo_key in _CRC_SPECS:
-        return crc_context_from_name(algo_key).update(data).hexdigest()
-
-    if algo_key in _CRC_WIDTH:
-        n = _crc_compute(algo_key, data)
-        return _hex_pad(n, _CRC_WIDTH[algo_key])
-
-    if CheckSumSupportAlt(algo_key, hashlib_guaranteed):
+    if CheckSumSupport(algo_key, hashlib_guaranteed):
         h = hashlib.new(algo_key)
         h.update(data)
         return h.hexdigest().lower()
 
     return "0"
 
-def ValidateHeaderChecksum(inlist=None, checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
+def ValidateHeaderChecksum(inlist=None, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
     calc = GetHeaderChecksum(inlist, checksumtype, True, formatspecs)
     want = (inchecksum or "0").strip().lower()
     if want.startswith("0x"):
         want = want[2:]
     return hmac.compare_digest(want, calc)
 
-def ValidateFileChecksum(infile, checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
+def ValidateFileChecksum(infile, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
     calc = GetFileChecksum(infile, checksumtype, True, formatspecs)
     want = (inchecksum or "0").strip().lower()
     if want.startswith("0x"):
         want = want[2:]
     return hmac.compare_digest(want, calc)
 
-
-# =========================
-#  Incremental CRC context
-# =========================
-CRCSpec = namedtuple("CRCSpec", "width poly init xorout refin refout")
-
-_CRC_SPECS = {
-    "crc16_ansi":  CRCSpec(16, 0x8005, 0xFFFF, 0x0000, True,  True),
-    "crc16_ccitt": CRCSpec(16, 0x1021, 0xFFFF, 0x0000, False, False),
-    "crc16_x25":   CRCSpec(16, 0x1021, 0xFFFF, 0xFFFF, True,  True),
-    "crc16_kermit":CRCSpec(16, 0x1021, 0x0000, 0x0000, True,  True),
-    "crc64_ecma":  CRCSpec(64, 0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, False, False),
-    "crc64_iso":   CRCSpec(64, 0x000000000000001B, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, True,  True),
-}
-
-class CRCContext(object):
-    __slots__ = ("spec", "table", "mask", "shift", "crc")
-
-    def __init__(self, spec):
-        self.spec  = spec
-        self.table = _build_table(spec.width, spec.poly, spec.refin)
-        self.mask  = (1 << spec.width) - 1
-        self.shift = spec.width - 8
-        self.crc   = spec.init & self.mask
-
-    def update(self, data):
-        if not isinstance(data, (bytes, bytearray, memoryview)):
-            data = bytes(bytearray(data))
-        if self.spec.refin:
-            c = self.crc
-            tbl = self.table
-            for b in memoryview(data).tobytes():
-                if not isinstance(b, int):  # Py2
-                    b = ord(b)
-                c = tbl[(c ^ b) & 0xFF] ^ (c >> 8)
-            self.crc = c & self.mask
-        else:
-            c = self.crc
-            tbl = self.table
-            sh  = self.shift
-            msk = self.mask
-            for b in memoryview(data).tobytes():
-                if not isinstance(b, int):
-                    b = ord(b)
-                c = tbl[((c >> sh) ^ b) & 0xFF] ^ ((c << 8) & msk)
-            self.crc = c & msk
-        return self
-
-    def digest_int(self):
-        c = self.crc
-        if self.spec.refout ^ self.spec.refin:
-            c = _reflect(c, self.spec.width)
-        return (c ^ self.spec.xorout) & self.mask
-
-    def hexdigest(self):
-        width_hex = (self.spec.width + 3) // 4
-        return format(self.digest_int(), "0{}x".format(width_hex)).lower()
-
-def crc_context_from_name(name_norm):
-    spec = _CRC_SPECS.get(name_norm)
-    if spec is None:
-        raise KeyError("Unknown CRC spec: {}".format(name_norm))
-    return CRCContext(spec)
-
-# =========================
-#     Dispatch helpers
-# =========================
-_CRC_ALIASES = {
-    # keep your historical behaviors
-    "crc16": "crc16_ansi",
-    "crc16_ibm": "crc16_ansi",
-    "crc16_ansi": "crc16_ansi",
-    "crc16_modbus": "crc16_ansi",
-    "crc16_ccitt": "crc16_ccitt",
-    "crc16_ccitt_false": "crc16_ccitt",
-    "crc16_x25": "crc16_x25",
-    "crc16_kermit": "crc16_kermit",
-    "crc64": "crc64_iso",
-    "crc64_iso": "crc64_iso",
-    "crc64_ecma": "crc64_ecma",
-    "adler32": "adler32",
-    "crc32": "crc32",
-}
-
-_CRC_WIDTH = {
-    "crc16_ansi": 16,
-    "crc16_ccitt": 16,
-    "crc16_x25": 16,
-    "crc16_kermit": 16,
-    "crc64_iso": 64,
-    "crc64_ecma": 64,
-    "adler32": 32,
-    "crc32": 32,
-}
-
-def _crc_compute(algo_key, data_bytes):
-    if algo_key == "crc16_ansi":
-        return crc16_ansi(data_bytes) & 0xFFFF
-    if algo_key == "crc16_ccitt":
-        return crc16_ccitt(data_bytes) & 0xFFFF
-    if algo_key == "crc16_x25":
-        return crc16_x25(data_bytes) & 0xFFFF
-    if algo_key == "crc16_kermit":
-        return crc16_kermit(data_bytes) & 0xFFFF
-    if algo_key == "crc64_iso":
-        return crc64_iso(data_bytes) & 0xFFFFFFFFFFFFFFFF
-    if algo_key == "crc64_ecma":
-        return crc64_ecma(data_bytes) & 0xFFFFFFFFFFFFFFFF
-    if algo_key == "adler32":
-        return zlib.adler32(data_bytes) & 0xFFFFFFFF
-    if algo_key == "crc32":
-        return zlib.crc32(data_bytes) & 0xFFFFFFFF
-    raise KeyError(algo_key)
-
-try:
-    hashlib_guaranteed
-except NameError:
-    hashlib_guaranteed = set(a.lower() for a in hashlib.algorithms_available)
-
-def CheckSumSupportAlt(name, guaranteed):
-    try:
-        return name.lower() in guaranteed
-    except Exception:
-        return False
-
 # =========================
 #     Public checksum API
 # =========================
-def GetHeaderChecksum(inlist=None, checksumtype="crc32", encodedata=True, formatspecs=__file_format_dict__):
+def GetHeaderChecksum(inlist=None, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
     """
     Serialize header fields (list/tuple => joined with delimiter + trailing delimiter;
     or a single field) and compute the requested checksum. Returns lowercase hex.
     """
-    checksumtype_norm = (checksumtype or "crc32").lower()
-    algo_key = _CRC_ALIASES.get(checksumtype_norm, checksumtype_norm)
+    algo_key = (checksumtype or "md5").lower()
 
     delim = formatspecs.get('format_delimiter', u"\0")
     hdr_bytes = _serialize_header_fields(inlist or [], delim)
@@ -4150,31 +3743,26 @@ def GetHeaderChecksum(inlist=None, checksumtype="crc32", encodedata=True, format
         hdr_bytes = _to_bytes(hdr_bytes)
     hdr_bytes = bytes(hdr_bytes)
 
-    if algo_key in _CRC_WIDTH:
-        n = _crc_compute(algo_key, hdr_bytes)
-        return _hex_pad(n, _CRC_WIDTH[algo_key])
-
-    if CheckSumSupportAlt(algo_key, hashlib_guaranteed):
-        h = hashlib.new(algo_key)
-        h.update(hdr_bytes)
-        return h.hexdigest().lower()
+    if CheckSumSupport(algo_key, hashlib_guaranteed):
+         h = hashlib.new(algo_key)
+         h.update(hdr_bytes)
+         return h.hexdigest().lower()
 
     return "0"
 
-def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__file_format_dict__):
+def GetFileChecksum(instr, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
     """
     Accepts bytes/str/file-like.
       - Hashlib algos: streamed in 1 MiB chunks.
       - CRC algos (crc16_ansi/ccitt/x25/kermit, crc64_iso/ecma): streamed via CRCContext for file-like.
       - Falls back to one-shot for non-file-like inputs.
     """
-    checksumtype_norm = (checksumtype or "crc32").lower()
-    algo_key = _CRC_ALIASES.get(checksumtype_norm, checksumtype_norm)
+    algo_key = (checksumtype or "md5").lower()
 
     # file-like streaming
     if hasattr(instr, "read"):
         # hashlib
-        if algo_key not in _CRC_SPECS and CheckSumSupportAlt(algo_key, hashlib_guaranteed):
+        if CheckSumSupport(algo_key, hashlib_guaranteed):
             h = hashlib.new(algo_key)
             while True:
                 chunk = instr.read(1 << 20)
@@ -4185,18 +3773,6 @@ def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__
                 h.update(chunk)
             return h.hexdigest().lower()
 
-        # CRC streaming via context
-        if algo_key in _CRC_SPECS:
-            ctx = crc_context_from_name(algo_key)
-            while True:
-                chunk = instr.read(1 << 20)
-                if not chunk:
-                    break
-                if not isinstance(chunk, (bytes, bytearray, memoryview)):
-                    chunk = bytes(bytearray(chunk))
-                ctx.update(chunk)
-            return ctx.hexdigest()
-
         # not known streaming algo: fallback to one-shot bytes
         data = instr.read()
         if not isinstance(data, (bytes, bytearray, memoryview)):
@@ -4206,28 +3782,21 @@ def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__
         data = bytes(data)
 
     # one-shot
-    if algo_key in _CRC_SPECS:
-        return crc_context_from_name(algo_key).update(data).hexdigest()
-
-    if algo_key in _CRC_WIDTH:
-        n = _crc_compute(algo_key, data)
-        return _hex_pad(n, _CRC_WIDTH[algo_key])
-
-    if CheckSumSupportAlt(algo_key, hashlib_guaranteed):
+    if CheckSumSupport(algo_key, hashlib_guaranteed):
         h = hashlib.new(algo_key)
         h.update(data)
         return h.hexdigest().lower()
 
     return "0"
 
-def ValidateHeaderChecksum(inlist=None, checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
+def ValidateHeaderChecksum(inlist=None, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
     calc = GetHeaderChecksum(inlist, checksumtype, True, formatspecs)
     want = (inchecksum or "0").strip().lower()
     if want.startswith("0x"):
         want = want[2:]
     return hmac.compare_digest(want, calc)
 
-def ValidateFileChecksum(infile, checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
+def ValidateFileChecksum(infile, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
     calc = GetFileChecksum(infile, checksumtype, True, formatspecs)
     want = (inchecksum or "0").strip().lower()
     if want.startswith("0x"):
@@ -4274,61 +3843,35 @@ def GetDataFromArrayAlt(structure, path, default=None):
     return element
 
 
-def GetHeaderChecksum(inlist=[], checksumtype="crc32", encodedata=True, formatspecs=__file_format_dict__):
+def GetHeaderChecksum(inlist=[], checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
     fileheader = AppendNullBytes(inlist, formatspecs['format_delimiter']) if isinstance(
         inlist, list) else AppendNullByte(inlist, formatspecs['format_delimiter'])
     if encodedata and hasattr(fileheader, "encode"):
         fileheader = fileheader.encode('UTF-8')
-    checksum_methods = {
-        "crc16": lambda data: format(crc16(data) & 0xffff, '04x').lower(),
-        "crc16_ansi": lambda data: format(crc16(data) & 0xffff, '04x').lower(),
-        "crc16_ibm": lambda data: format(crc16(data) & 0xffff, '04x').lower(),
-        "crc16_ccitt": lambda data: format(crc16_ccitt(data) & 0xffff, '04x').lower(),
-        "adler32": lambda data: format(zlib.adler32(data) & 0xffffffff, '08x').lower(),
-        "crc32": lambda data: format(crc32(data) & 0xffffffff, '08x').lower(),
-        "crc64_ecma": lambda data: format(crc64_ecma(data) & 0xffffffffffffffff, '016x').lower(),
-        "crc64": lambda data: format(crc64_iso(data) & 0xffffffffffffffff, '016x').lower(),
-        "crc64_iso": lambda data: format(crc64_iso(data) & 0xffffffffffffffff, '016x').lower(),
-    }
-    if checksumtype in checksum_methods:
-        return checksum_methods[checksumtype](fileheader)
-    elif CheckSumSupportAlt(checksumtype, hashlib_guaranteed):
+    if CheckSumSupport(checksumtype, hashlib_guaranteed):
         checksumoutstr = hashlib.new(checksumtype)
         checksumoutstr.update(fileheader)
         return checksumoutstr.hexdigest().lower()
     return format(0, 'x').lower()
 
 
-def GetFileChecksum(instr, checksumtype="crc32", encodedata=True, formatspecs=__file_format_dict__):
+def GetFileChecksum(instr, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
     if encodedata and hasattr(instr, "encode"):
         instr = instr.encode('UTF-8')
-    checksum_methods = {
-        "crc16": lambda data: format(crc16(data) & 0xffff, '04x').lower(),
-        "crc16_ansi": lambda data: format(crc16(data) & 0xffff, '04x').lower(),
-        "crc16_ibm": lambda data: format(crc16(data) & 0xffff, '04x').lower(),
-        "crc16_ccitt": lambda data: format(crc16_ccitt(data) & 0xffff, '04x').lower(),
-        "adler32": lambda data: format(zlib.adler32(data) & 0xffffffff, '08x').lower(),
-        "crc32": lambda data: format(crc32(data) & 0xffffffff, '08x').lower(),
-        "crc64_ecma": lambda data: format(crc64_ecma(data) & 0xffffffffffffffff, '016x').lower(),
-        "crc64": lambda data: format(crc64_iso(data) & 0xffffffffffffffff, '016x').lower(),
-        "crc64_iso": lambda data: format(crc64_iso(data) & 0xffffffffffffffff, '016x').lower(),
-    }
-    if checksumtype in checksum_methods:
-        return checksum_methods[checksumtype](instr)
-    elif CheckSumSupportAlt(checksumtype, hashlib_guaranteed):
+    if CheckSumSupport(checksumtype, hashlib_guaranteed):
         checksumoutstr = hashlib.new(checksumtype)
         checksumoutstr.update(instr)
         return checksumoutstr.hexdigest().lower()
     return format(0, 'x').lower()
 
 
-def ValidateHeaderChecksum(inlist=[], checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
+def ValidateHeaderChecksum(inlist=[], checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
     infileheadercshex = GetHeaderChecksum(
         inlist, checksumtype, True, formatspecs).lower()
     return inchecksum.lower() == infileheadercshex
 
 
-def ValidateFileChecksum(infile, checksumtype="crc32", inchecksum="0", formatspecs=__file_format_dict__):
+def ValidateFileChecksum(infile, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
     catinfilecshex = GetFileChecksum(
         infile, checksumtype, True, formatspecs).lower()
     return inchecksum.lower() == catinfilecshex
@@ -5359,9 +4902,7 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
     curloc = filestart
     try:
         fp.seek(0, 2)
-    except OSError:
-        SeekToEndOfFile(fp)
-    except ValueError:
+    except (ValueError, OSError):
         SeekToEndOfFile(fp)
     CatSize = fp.tell()
     CatSizeEnd = CatSize
@@ -5518,9 +5059,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
         fp = infile
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5530,9 +5069,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
         shutil.copyfileobj(PY_STDIN_BUF, fp, length=__filebuff_size__)
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5542,9 +5079,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
         fp.write(infile)
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5553,9 +5088,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
         fp = download_file_from_internet_file(infile)
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5563,9 +5096,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
     elif(isinstance(infile, FileLikeAdapter)):
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5575,9 +5106,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
         fp = open(infile, "rb")
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5628,9 +5157,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
             currentinfilepos = infp.tell()
             try:
                 infp.seek(0, 2)
-            except OSError:
-                SeekToEndOfFile(infp)
-            except ValueError:
+            except (ValueError, OSError):
                 SeekToEndOfFile(infp)
             outinfsize = infp.tell()
             infp.seek(currentinfilepos, 0)
@@ -5669,9 +5196,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         fp = infile
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5681,9 +5206,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         shutil.copyfileobj(PY_STDIN_BUF, fp, length=__filebuff_size__)
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5693,9 +5216,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         fp.write(infile)
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5704,9 +5225,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         fp = download_file_from_internet_file(infile)
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5714,9 +5233,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
     elif(isinstance(infile, FileLikeAdapter)):
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5726,9 +5243,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         fp = open(infile, "rb")
         try:
             fp.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(fp)
-        except ValueError:
+        except (ValueError, OSError):
             SeekToEndOfFile(fp)
         outfsize = fp.tell()
         fp.seek(filestart, 0)
@@ -5779,9 +5294,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
             currentinfilepos = infp.tell()
             try:
                 infp.seek(0, 2)
-            except OSError:
-                SeekToEndOfFile(infp)
-            except ValueError:
+            except (ValueError, OSError):
                 SeekToEndOfFile(infp)
             outinfsize = infp.tell()
             infp.seek(currentinfilepos, 0)
@@ -5870,7 +5383,7 @@ def AppendFileHeader(fp,
                      numfiles,
                      fencoding,
                      extradata=None,
-                     checksumtype="crc32",
+                     checksumtype="md5",
                      formatspecs=__file_format_dict__):
     """
     Build and write the archive file header.
@@ -5981,7 +5494,7 @@ def AppendFileHeader(fp,
     return fp
 
 
-def MakeEmptyFilePointer(fp, fmttype=__file_format_default__, checksumtype="crc32", formatspecs=__file_format_multi_dict__):
+def MakeEmptyFilePointer(fp, fmttype=__file_format_default__, checksumtype="md5", formatspecs=__file_format_multi_dict__):
     if(IsNestedDict(formatspecs) and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype not in formatspecs):
@@ -5991,11 +5504,11 @@ def MakeEmptyFilePointer(fp, fmttype=__file_format_default__, checksumtype="crc3
     return fp
 
 
-def MakeEmptyArchiveFilePointer(fp, fmttype=__file_format_default__, checksumtype="crc32", formatspecs=__file_format_multi_dict__):
+def MakeEmptyArchiveFilePointer(fp, fmttype=__file_format_default__, checksumtype="md5", formatspecs=__file_format_multi_dict__):
     return MakeEmptyFilePointer(fp, fmttype, checksumtype, formatspecs)
 
 
-def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype="crc32", formatspecs=__file_format_multi_dict__, returnfp=False):
+def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype="md5", formatspecs=__file_format_multi_dict__, returnfp=False):
     if(IsNestedDict(formatspecs) and fmttype=="auto" and 
         (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
         get_in_ext = os.path.splitext(outfile)
@@ -6044,11 +5557,7 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
@@ -6071,11 +5580,11 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
         return True
 
 
-def MakeEmptyArchiveFile(outfile, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype="crc32", formatspecs=__file_format_dict__, returnfp=False):
+def MakeEmptyArchiveFile(outfile, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype="md5", formatspecs=__file_format_dict__, returnfp=False):
     return MakeEmptyFile(outfile, "auto", compression, compresswholefile, compressionlevel, compressionuselist, checksumtype, formatspecs, returnfp)
 
 
-def AppendFileHeaderWithContent(fp, filevalues=[], extradata=[], jsondata={}, filecontent="", checksumtype=["crc32", "crc32", "crc32"], formatspecs=__file_format_dict__):
+def AppendFileHeaderWithContent(fp, filevalues=[], extradata=[], jsondata={}, filecontent="", checksumtype=["md5", "md5", "md5"], formatspecs=__file_format_dict__):
     if(not hasattr(fp, "write")):
         return False
     if (isinstance(extradata, dict) or IsNestedDictAlt(extradata)) and len(extradata) > 0:
@@ -6154,15 +5663,11 @@ def AppendFileHeaderWithContent(fp, filevalues=[], extradata=[], jsondata={}, fi
         fp.flush()
         if(hasattr(os, "sync")):
             os.fsync(fp.fileno())
-    except io.UnsupportedOperation:
-        pass
-    except AttributeError:
-        pass
-    except OSError:
+    except (io.UnsupportedOperation, AttributeError, OSError):
         pass
     return fp
 
-def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
     if(not hasattr(fp, "write")):
         return False
     advancedlist = formatspecs['use_advanced_list']
@@ -6216,11 +5721,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
         fp.flush()
         if(hasattr(os, "sync")):
             os.fsync(fp.fileno())
-    except io.UnsupportedOperation:
-        pass
-    except AttributeError:
-        pass
-    except OSError:
+    except (io.UnsupportedOperation, AttributeError, OSError):
         pass
     FullSizeFilesAlt = 0
     for curfname in GetDirList:
@@ -6477,15 +5978,11 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
     return fp
 
-def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
     if(not hasattr(fp, "write")):
         return False
     if(verbose):
@@ -6559,11 +6056,7 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
         fp.flush()
         if(hasattr(os, "sync")):
             os.fsync(fp.fileno())
-    except io.UnsupportedOperation:
-        pass
-    except AttributeError:
-        pass
-    except OSError:
+    except (io.UnsupportedOperation, AttributeError, OSError):
         pass
     for member in sorted(tarfp.getmembers(), key=lambda x: x.name):
         fencoding = "UTF-8"
@@ -6707,16 +6200,12 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
         fcontents.close()
     return fp
 
-def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
     if(not hasattr(fp, "write")):
         return False
     if(verbose):
@@ -6760,11 +6249,7 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
         fp.flush()
         if(hasattr(os, "sync")):
             os.fsync(fp.fileno())
-    except io.UnsupportedOperation:
-        pass
-    except AttributeError:
-        pass
-    except OSError:
+    except (io.UnsupportedOperation, AttributeError, OSError):
         pass
     for member in sorted(zipfp.infolist(), key=lambda x: x.filename):
         fencoding = "UTF-8"
@@ -6849,24 +6334,18 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
         fcsize = format(int(0), 'x').lower()
         try:
             fuid = format(int(os.getuid()), 'x').lower()
-        except AttributeError:
-            fuid = format(int(0), 'x').lower()
-        except KeyError:
+        except (KeyError, AttributeError):
             fuid = format(int(0), 'x').lower()
         try:
             fgid = format(int(os.getgid()), 'x').lower()
-        except AttributeError:
-            fgid = format(int(0), 'x').lower()
-        except KeyError:
+        except (KeyError, AttributeError):
             fgid = format(int(0), 'x').lower()
         try:
             import pwd
             try:
                 userinfo = pwd.getpwuid(os.getuid())
                 funame = userinfo.pw_name
-            except KeyError:
-                funame = ""
-            except AttributeError:
+            except (KeyError, AttributeError):
                 funame = ""
         except ImportError:
             funame = ""
@@ -6876,9 +6355,7 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
             try:
                 groupinfo = grp.getgrgid(os.getgid())
                 fgname = groupinfo.gr_name
-            except KeyError:
-                fgname = ""
-            except AttributeError:
+            except (KeyError, AttributeError):
                 fgname = ""
         except ImportError:
             fgname = ""
@@ -6937,21 +6414,17 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
         fcontents.close()
     return fp
 
 if(not rarfile_support):
-    def AppendFilesWithContentFromRarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+    def AppendFilesWithContentFromRarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
         return False
 
 if(rarfile_support):
-    def AppendFilesWithContentFromRarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+    def AppendFilesWithContentFromRarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
         if(not hasattr(fp, "write")):
             return False
         if(verbose):
@@ -6977,21 +6450,13 @@ if(rarfile_support):
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
         try:
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
         for member in sorted(rarfp.infolist(), key=lambda x: x.filename):
             is_unix = False
@@ -7100,24 +6565,18 @@ if(rarfile_support):
                     int(stat.S_IFMT(int(stat.S_IFDIR | 0x1ff))), 'x').lower()
             try:
                 fuid = format(int(os.getuid()), 'x').lower()
-            except AttributeError:
-                fuid = format(int(0), 'x').lower()
-            except KeyError:
+            except (KeyError, AttributeError):
                 fuid = format(int(0), 'x').lower()
             try:
                 fgid = format(int(os.getgid()), 'x').lower()
-            except AttributeError:
-                fgid = format(int(0), 'x').lower()
-            except KeyError:
+            except (KeyError, AttributeError):
                 fgid = format(int(0), 'x').lower()
             try:
                 import pwd
                 try:
                     userinfo = pwd.getpwuid(os.getuid())
                     funame = userinfo.pw_name
-                except KeyError:
-                    funame = ""
-                except AttributeError:
+                except (KeyError, AttributeError):
                     funame = ""
             except ImportError:
                 funame = ""
@@ -7127,9 +6586,7 @@ if(rarfile_support):
                 try:
                     groupinfo = grp.getgrgid(os.getgid())
                     fgname = groupinfo.gr_name
-                except KeyError:
-                    fgname = ""
-                except AttributeError:
+                except (KeyError, AttributeError):
                     fgname = ""
             except ImportError:
                 fgname = ""
@@ -7191,21 +6648,17 @@ if(rarfile_support):
                 fp.flush()
                 if(hasattr(os, "sync")):
                     os.fsync(fp.fileno())
-            except io.UnsupportedOperation:
-                pass
-            except AttributeError:
-                pass
-            except OSError:
+            except (io.UnsupportedOperation, AttributeError, OSError):
                 pass
             fcontents.close()
         return fp
 
 if(not py7zr_support):
-    def AppendFilesWithContentFromSevenZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+    def AppendFilesWithContentFromSevenZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
         return False
 
 if(py7zr_support):
-    def AppendFilesWithContentFromSevenZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+    def AppendFilesWithContentFromSevenZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
         if(not hasattr(fp, "write")):
             return False
         if(verbose):
@@ -7233,11 +6686,7 @@ if(py7zr_support):
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
         for member in sorted(szpfp.list(), key=lambda x: x.filename):
             fencoding = "UTF-8"
@@ -7287,24 +6736,18 @@ if(py7zr_support):
                     int(stat.S_IFMT(int(stat.S_IFREG | 0x1b6))), 'x').lower()
             try:
                 fuid = format(int(os.getuid()), 'x').lower()
-            except AttributeError:
-                fuid = format(int(0), 'x').lower()
-            except KeyError:
+            except (KeyError, AttributeError):
                 fuid = format(int(0), 'x').lower()
             try:
                 fgid = format(int(os.getgid()), 'x').lower()
-            except AttributeError:
-                fgid = format(int(0), 'x').lower()
-            except KeyError:
+            except (KeyError, AttributeError):
                 fgid = format(int(0), 'x').lower()
             try:
                 import pwd
                 try:
                     userinfo = pwd.getpwuid(os.getuid())
                     funame = userinfo.pw_name
-                except KeyError:
-                    funame = ""
-                except AttributeError:
+                except (KeyError, AttributeError):
                     funame = ""
             except ImportError:
                 funame = ""
@@ -7314,9 +6757,7 @@ if(py7zr_support):
                 try:
                     groupinfo = grp.getgrgid(os.getgid())
                     fgname = groupinfo.gr_name
-                except KeyError:
-                    fgname = ""
-                except AttributeError:
+                except (KeyError, AttributeError):
                     fgname = ""
             except ImportError:
                 fgname = ""
@@ -7381,16 +6822,12 @@ if(py7zr_support):
                 fp.flush()
                 if(hasattr(os, "sync")):
                     os.fsync(fp.fileno())
-            except io.UnsupportedOperation:
-                pass
-            except AttributeError:
-                pass
-            except OSError:
+            except (io.UnsupportedOperation, AttributeError, OSError):
                 pass
             fcontents.close()
         return fp
 
-def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
     if(not hasattr(fp, "write")):
         return False
     if(verbose):
@@ -7452,12 +6889,12 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsond
     return fp
 
 
-def AppendInFileWithContent(infile, fp, dirlistfromtxt=False, extradata=[], jsondata={}, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False):
+def AppendInFileWithContent(infile, fp, dirlistfromtxt=False, extradata=[], jsondata={}, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False):
     inlist = ReadInFileWithContentToList(infile, "auto", 0, 0, False, False, True, False, formatspecs)
     return AppendListsWithContent(inlist, fp, dirlistfromtxt, extradata, jsondata, followlink, checksumtype, formatspecs, verbose)
 
 
-def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if(IsNestedDict(formatspecs) and fmttype=="auto" and 
         (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
         get_in_ext = os.path.splitext(outfile)
@@ -7510,11 +6947,7 @@ def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmtt
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
@@ -7535,7 +6968,7 @@ def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmtt
         fp.close()
         return True
 
-def AppendFilesWithContentToStackedOutFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentToStackedOutFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if not isinstance(infiles, list):
         infiles = [infiles]
     returnout = False
@@ -7550,7 +6983,7 @@ def AppendFilesWithContentToStackedOutFile(infiles, outfile, dirlistfromtxt=Fals
         return True
     return returnout
 
-def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, extradata=[], jsondata={}, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, extradata=[], jsondata={}, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
     if(IsNestedDict(formatspecs) and fmttype=="auto" and 
         (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
         get_in_ext = os.path.splitext(outfile)
@@ -7600,11 +7033,7 @@ def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmtty
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
@@ -7626,7 +7055,7 @@ def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmtty
         fp.close()
         return True
 
-def AppendFilesWithContentFromTarFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentFromTarFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if(IsNestedDict(formatspecs) and fmttype=="auto" and 
         (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
         get_in_ext = os.path.splitext(outfile)
@@ -7677,11 +7106,7 @@ def AppendFilesWithContentFromTarFileToOutFile(infiles, outfile, fmttype="auto",
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
@@ -7703,7 +7128,7 @@ def AppendFilesWithContentFromTarFileToOutFile(infiles, outfile, fmttype="auto",
         fp.close()
         return True
 
-def AppendFilesWithContentFromTarFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentFromTarFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if not isinstance(infiles, list):
         infiles = [infiles]
     returnout = False
@@ -7718,7 +7143,7 @@ def AppendFilesWithContentFromTarFileToStackedOutFile(infiles, outfile, fmttype=
         return True
     return returnout
 
-def AppendFilesWithContentFromZipFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentFromZipFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if(IsNestedDict(formatspecs) and fmttype=="auto" and 
         (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
         get_in_ext = os.path.splitext(outfile)
@@ -7769,11 +7194,7 @@ def AppendFilesWithContentFromZipFileToOutFile(infiles, outfile, fmttype="auto",
             fp.flush()
             if(hasattr(os, "sync")):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            pass
-        except AttributeError:
-            pass
-        except OSError:
+        except (io.UnsupportedOperation, AttributeError, OSError):
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
@@ -7795,7 +7216,7 @@ def AppendFilesWithContentFromZipFileToOutFile(infiles, outfile, fmttype="auto",
         fp.close()
         return True
 
-def AppendFilesWithContentFromZipFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentFromZipFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if not isinstance(infiles, list):
         infiles = [infiles]
     returnout = False
@@ -7811,11 +7232,11 @@ def AppendFilesWithContentFromZipFileToStackedOutFile(infiles, outfile, fmttype=
     return returnout
 
 if(not rarfile_support):
-    def AppendFilesWithContentFromRarFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+    def AppendFilesWithContentFromRarFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
         return False
 
 if(rarfile_support):
-    def AppendFilesWithContentFromRarFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+    def AppendFilesWithContentFromRarFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
         if(IsNestedDict(formatspecs) and fmttype=="auto" and 
             (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
             get_in_ext = os.path.splitext(outfile)
@@ -7866,11 +7287,7 @@ if(rarfile_support):
                 fp.flush()
                 if(hasattr(os, "sync")):
                     os.fsync(fp.fileno())
-            except io.UnsupportedOperation:
-                pass
-            except AttributeError:
-                pass
-            except OSError:
+            except (io.UnsupportedOperation, AttributeError, OSError):
                 pass
         if(outfile == "-"):
             fp.seek(0, 0)
@@ -7892,7 +7309,7 @@ if(rarfile_support):
             fp.close()
             return True
 
-def AppendFilesWithContentFromRarFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentFromRarFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if not isinstance(infiles, list):
         infiles = [infiles]
     returnout = False
@@ -7908,11 +7325,11 @@ def AppendFilesWithContentFromRarFileToStackedOutFile(infiles, outfile, fmttype=
     return returnout
 
 if(not py7zr_support):
-    def AppendFilesWithContentFromSevenZipFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+    def AppendFilesWithContentFromSevenZipFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
         return False
 
 if(py7zr_support):
-    def AppendFilesWithContentFromSevenZipFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+    def AppendFilesWithContentFromSevenZipFileToOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
         if(IsNestedDict(formatspecs) and fmttype=="auto" and 
             (outfile != "-" and outfile is not None and not hasattr(outfile, "read") and not hasattr(outfile, "write"))):
             get_in_ext = os.path.splitext(outfile)
@@ -7963,11 +7380,7 @@ if(py7zr_support):
                 fp.flush()
                 if(hasattr(os, "sync")):
                     os.fsync(fp.fileno())
-            except io.UnsupportedOperation:
-                pass
-            except AttributeError:
-                pass
-            except OSError:
+            except (io.UnsupportedOperation, AttributeError, OSError):
                 pass
         if(outfile == "-"):
             fp.seek(0, 0)
@@ -7989,7 +7402,7 @@ if(py7zr_support):
             fp.close()
             return True
 
-def AppendFilesWithContentFromSevenZipFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def AppendFilesWithContentFromSevenZipFileToStackedOutFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, extradata=[], jsondata={}, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if not isinstance(infiles, list):
         infiles = [infiles]
     returnout = False
@@ -8004,7 +7417,7 @@ def AppendFilesWithContentFromSevenZipFileToStackedOutFile(infiles, outfile, fmt
         return True
     return returnout
 
-def AppendInFileWithContentToOutFile(infile, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, extradata=[], jsondata={}, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def AppendInFileWithContentToOutFile(infile, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, extradata=[], jsondata={}, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
     inlist = ReadInFileWithContentToList(infile, "auto", 0, 0, False, False, True, False, formatspecs)
     return AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt, fmttype, compression, compresswholefile, compressionlevel, extradata, jsondata, followlink, checksumtype, formatspecs, verbose, returnfp)
 
@@ -8038,9 +7451,7 @@ def PrintPermissionString(fchmode, ftype):
         permissionstr = "w" + permissionstr
     try:
         permissionoutstr = stat.filemode(fchmode)
-    except AttributeError:
-        permissionoutstr = permissionstr
-    except KeyError:
+    except (KeyError, AttributeError):
         permissionoutstr = permissionstr
     return permissionoutstr
 
@@ -9043,9 +8454,7 @@ def _extract_base_fp(obj):
             try:
                 f()  # probe fileno()
                 return cur
-            except UnsupportedOperation:
-                pass
-            except Exception:
+            except (Exception, UnsupportedOperation):
                 pass
         for attr in ("fileobj", "fp", "_fp", "buffer", "raw"):
             nxt = getattr(cur, attr, None)
@@ -9478,7 +8887,7 @@ def copy_file_to_mmap_dest(src_path, outfp, chunk_size=__spoolfile_size__):
             finally:
                 mm_src.close()
         except (ValueError, mmap.error, OSError):
-            shutil.copyfileobj(fp, outfp, length=chunk_size, length=__filebuff_size__)
+            shutil.copyfileobj(fp, outfp, length=chunk_size)
 
 
 def copy_opaque(src, dst, bufsize=1 << 20, grow_step=64 << 20):
@@ -9543,11 +8952,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None,
 
     try:
         fp.seek(0, 0)
-    except io.UnsupportedOperation:
-        pass
-    except AttributeError:
-        pass
-    except OSError:
+    except (io.UnsupportedOperation, AttributeError, OSError):
         pass
 
     if (not compression or compression == formatspecs['format_magic']
@@ -9606,11 +9011,7 @@ def CompressOpenFileAlt(fp, compression="auto", compressionlevel=None,
 
     try:
         bytesfp.seek(0, 0)
-    except io.UnsupportedOperation:
-        pass
-    except AttributeError:
-        pass
-    except OSError:
+    except (io.UnsupportedOperation, AttributeError, OSError):
         pass
     out = FileLikeAdapter(bytesfp, mode="rb")  # read interface for the caller
     try:
@@ -9746,25 +9147,6 @@ def CheckSumSupport(checkfor, guaranteed=True):
             hash_list = sorted(list(hashlib.algorithms_available))
         except AttributeError:
             hash_list = sorted(list(hashlib.algorithms))
-    checklistout = sorted(hash_list + ['adler32', 'crc16', 'crc16_ansi', 'crc16_ibm',
-                          'crc16_ccitt', 'crc32', 'crc64', 'crc64_ecma', 'crc64_iso', 'none'])
-    if(checkfor in checklistout):
-        return True
-    else:
-        return False
-
-
-def CheckSumSupportAlt(checkfor, guaranteed=True):
-    if(guaranteed):
-        try:
-            hash_list = sorted(list(hashlib.algorithms_guaranteed))
-        except AttributeError:
-            hash_list = sorted(list(hashlib.algorithms))
-    else:
-        try:
-            hash_list = sorted(list(hashlib.algorithms_available))
-        except AttributeError:
-            hash_list = sorted(list(hashlib.algorithms))
     checklistout = hash_list
     if(checkfor in checklistout):
         return True
@@ -9772,43 +9154,43 @@ def CheckSumSupportAlt(checkfor, guaranteed=True):
         return False
 
 
-def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def PackArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
         return AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, extradata, jsondata, followlink, checksumtype, formatspecs, verbose, returnfp)
 
-def PackStackedArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["crc32", "crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+def PackStackedArchiveFile(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["md5", "md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
         return AppendFilesWithContentToStackedOutFile(infiles, outfile, dirlistfromtxt, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, extradata, jsondata, followlink, checksumtype, formatspecs, verbose, returnfp)
 
-def PackArchiveFileFromDirList(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def PackArchiveFileFromDirList(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, checksumtype=["md5", "md5", "md5"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
     return PackArchiveFile(infiles, outfile, dirlistfromtxt, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, followlink, checksumtype, extradata, formatspecs, verbose, returnfp)
 
 
-def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def PackArchiveFileFromTarFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
     return AppendFilesWithContentFromTarFileToOutFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, extradata, jsondata, checksumtype, formatspecs, verbose, returnfp)
 
 
-def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def PackArchiveFileFromZipFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
     return AppendFilesWithContentFromZipFileToOutFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, extradata, jsondata, checksumtype, formatspecs, verbose, returnfp)
 
 
 if(not rarfile_support):
-    def PackArchiveFileFromRarFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+    def PackArchiveFileFromRarFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
         return False
 
 if(rarfile_support):
-    def PackArchiveFileFromRarFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+    def PackArchiveFileFromRarFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
         return AppendFilesWithContentFromRarFileToOutFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, extradata, jsondata, checksumtype, formatspecs, verbose, returnfp)
 
 
 if(not py7zr_support):
-    def PackArchiveFileFromSevenZipFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+    def PackArchiveFileFromSevenZipFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5"], extradata=[], formatspecs=__file_format_dict__, verbose=False, returnfp=False):
         return False
 
 if(py7zr_support):
-    def PackArchiveFileFromSevenZipFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+    def PackArchiveFileFromSevenZipFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
         return AppendFilesWithContentFromSevenZipFileToOutFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, extradata, jsondata, checksumtype, formatspecs, verbose, returnfp)
 
 
-def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["crc32", "crc32", "crc32"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
+def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5"], extradata=[], jsondata={}, formatspecs=__file_format_dict__, verbose=False, returnfp=False):
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, 0, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
@@ -10000,9 +9382,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
 
     try:
         fp.seek(0, 2)
-    except OSError:
-        SeekToEndOfFile(fp)
-    except ValueError:
+    except (OSError, ValueError):
         SeekToEndOfFile(fp)
 
     CatSize = fp.tell()
@@ -10281,9 +9661,7 @@ def StackedArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=
         outstartfile = infile.tell()
         try:
             infile.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(infile)
-        except ValueError:
+        except (OSError, ValueError):
             SeekToEndOfFile(infile)
         outfsize = infile.tell()
         infile.seek(outstartfile, 0)
@@ -10359,7 +9737,7 @@ def TarFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile
         formatspecs = formatspecs[checkcompressfile]
     fp = MkTempFile()
     fp = PackArchiveFileFromTarFile(
-        infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
+        infile, fp, "auto", True, None, compressionlistalt, "md5", [], formatspecs, False, True)
     listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
     return listarrayfiles
 
@@ -10370,7 +9748,7 @@ def ZipFileToArray(infile, seekstart=0, seekend=0, listonly=False, contentasfile
         formatspecs = formatspecs[checkcompressfile]
     fp = MkTempFile()
     fp = PackArchiveFileFromZipFile(
-        infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
+        infile, fp, "auto", True, None, compressionlistalt, "md5", [], formatspecs, False, True)
     listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
     return listarrayfiles
 
@@ -10386,7 +9764,7 @@ if(rarfile_support):
             formatspecs = formatspecs[checkcompressfile]
         fp = MkTempFile()
         fp = PackArchiveFileFromRarFile(
-            infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
+            infile, fp, "auto", True, None, compressionlistalt, "md5", [], formatspecs, False, True)
         listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
         return listarrayfiles
 
@@ -10401,7 +9779,7 @@ if(py7zr_support):
             formatspecs = formatspecs[checkcompressfile]
         fp = MkTempFile()
         fp = PackArchiveFileFromSevenZipFile(
-            infile, fp, "auto", True, None, compressionlistalt, "crc32", [], formatspecs, False, True)
+            infile, fp, "auto", True, None, compressionlistalt, "md5", [], formatspecs, False, True)
         listarrayfiles = ArchiveFileToArray(fp, "auto", 0, seekstart, seekend, listonly, contentasfile, True, skipchecksum, formatspecs, seektoend, returnfp)
         return listarrayfiles
 
@@ -10425,7 +9803,7 @@ def InFileToArray(infile, filestart=0, seekstart=0, seekend=0, listonly=False, c
     return False
 
 
-def ListDirToArray(infiles, dirlistfromtxt=False, fmttype=__file_format_default__, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, filestart=0, seekstart=0, seekend=0, listonly=False, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], extradata=[], formatspecs=__file_format_dict__, verbose=False, seektoend=False, returnfp=False):
+def ListDirToArray(infiles, dirlistfromtxt=False, fmttype=__file_format_default__, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, filestart=0, seekstart=0, seekend=0, listonly=False, skipchecksum=False, checksumtype=["md5", "md5", "md5"], extradata=[], formatspecs=__file_format_dict__, verbose=False, seektoend=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, followlink, checksumtype, extradata, formatspecs, verbose, True)
@@ -10556,7 +9934,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
     if compressionuselist is None:
         compressionuselist = compressionlistalt
     if checksumtype is None:
-        checksumtype = ["crc32", "crc32", "crc32", "crc32"]
+        checksumtype = ["md5", "md5", "md5", "md5"]
     if extradata is None:
         extradata = []
     if jsondata is None:
@@ -10865,15 +10243,8 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             fp.flush()
             if hasattr(os, "sync"):
                 os.fsync(fp.fileno())
-        except io.UnsupportedOperation:
-            if verbose:
-                logging.warning("Flush/sync unsupported on this file object.")
-        except AttributeError:
-            if verbose:
-                logging.warning("Flush/sync attributes missing on this file object.")
-        except OSError as e:
-            if verbose:
-                logging.warning("OS error during flush/sync: %s", e)
+        except (io.UnsupportedOperation, AttributeError, OSError):
+            pass
 
     if outfile == "-":
         fp.seek(0, 0)
@@ -10916,14 +10287,14 @@ def RePackMultipleArchiveFile(infiles, outfile, fmttype="auto", compression="aut
         return True
     return returnout
 
-def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     fp = MkTempFile(instr)
     listarrayfiles = RePackArchiveFile(fp, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, followlink, filestart, seekstart, seekend,
                                      checksumtype, skipchecksum, extradata, jsondata, formatspecs, seektoend, verbose, returnfp)
     return listarrayfiles
 
 
-def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["crc32", "crc32", "crc32"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, compressionuselist, followlink, checksumtype, extradata, formatspecs, verbose, True)
@@ -10991,11 +10362,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                     fpc.flush()
                     if(hasattr(os, "sync")):
                         os.fsync(fpc.fileno())
-                except io.UnsupportedOperation:
-                    pass
-                except AttributeError:
-                    pass
-                except OSError:
+                except (io.UnsupportedOperation, AttributeError, OSError):
                     pass
             if(hasattr(os, "chown") and funame == listarrayfiles['ffilelist'][lcfi]['funame'] and fgname == listarrayfiles['ffilelist'][lcfi]['fgname'] and preservepermissions):
                 os.chown(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']),
@@ -11042,11 +10409,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                             fpc.flush()
                             if(hasattr(os, "sync")):
                                 os.fsync(fpc.fileno())
-                        except io.UnsupportedOperation:
-                            pass
-                        except AttributeError:
-                            pass
-                        except OSError:
+                        except (io.UnsupportedOperation, AttributeError, OSError):
                             pass
                     if(hasattr(os, "chown") and funame == flinkinfo['funame'] and fgname == flinkinfo['fgname'] and preservepermissions):
                         os.chown(PrependPath(
@@ -11121,11 +10484,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                             fpc.flush()
                             if(hasattr(os, "sync")):
                                 os.fsync(fpc.fileno())
-                        except io.UnsupportedOperation:
-                            pass
-                        except AttributeError:
-                            pass
-                        except OSError:
+                        except (io.UnsupportedOperation, AttributeError, OSError):
                             pass
                     if(hasattr(os, "chown") and funame == flinkinfo['funame'] and fgname == flinkinfo['fgname'] and preservepermissions):
                         os.chown(PrependPath(
@@ -11293,9 +10652,7 @@ def StackedArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0
         outstartfile = infile.tell()
         try:
             infile.seek(0, 2)
-        except OSError:
-            SeekToEndOfFile(infile)
-        except ValueError:
+        except (OSError, ValueError):
             SeekToEndOfFile(infile)
         outfsize = infile.tell()
         infile.seek(outstartfile, 0)
@@ -11527,24 +10884,18 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
             printfname = member.filename
             try:
                 fuid = int(os.getuid())
-            except AttributeError:
-                fuid = int(0)
-            except KeyError:
+            except (KeyError, AttributeError):
                 fuid = int(0)
             try:
                 fgid = int(os.getgid())
-            except AttributeError:
-                fgid = int(0)
-            except KeyError:
+            except (KeyError, AttributeError):
                 fgid = int(0)
             try:
                 import pwd
                 try:
                     userinfo = pwd.getpwuid(os.getuid())
                     funame = userinfo.pw_name
-                except KeyError:
-                    funame = ""
-                except AttributeError:
+                except (KeyError, AttributeError):
                     funame = ""
             except ImportError:
                 funame = ""
@@ -11554,9 +10905,7 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
                 try:
                     groupinfo = grp.getgrgid(os.getgid())
                     fgname = groupinfo.gr_name
-                except KeyError:
-                    fgname = ""
-                except AttributeError:
+                except (KeyError, AttributeError):
                     fgname = ""
             except ImportError:
                 fgname = ""
@@ -11665,24 +11014,18 @@ if(rarfile_support):
                     printfname = member.filename
                 try:
                     fuid = int(os.getuid())
-                except AttributeError:
-                    fuid = int(0)
-                except KeyError:
+                except (KeyError, AttributeError):
                     fuid = int(0)
                 try:
                     fgid = int(os.getgid())
-                except AttributeError:
-                    fgid = int(0)
-                except KeyError:
+                except (KeyError, AttributeError):
                     fgid = int(0)
                 try:
                     import pwd
                     try:
                         userinfo = pwd.getpwuid(os.getuid())
                         funame = userinfo.pw_name
-                    except KeyError:
-                        funame = ""
-                    except AttributeError:
+                    except (KeyError, AttributeError):
                         funame = ""
                 except ImportError:
                     funame = ""
@@ -11692,9 +11035,7 @@ if(rarfile_support):
                     try:
                         groupinfo = grp.getgrgid(os.getgid())
                         fgname = groupinfo.gr_name
-                    except KeyError:
-                        fgname = ""
-                    except AttributeError:
+                    except (KeyError, AttributeError):
                         fgname = ""
                 except ImportError:
                     fgname = ""
@@ -11772,24 +11113,18 @@ if(py7zr_support):
                     file_content[member.filename].close()
                 try:
                     fuid = int(os.getuid())
-                except AttributeError:
-                    fuid = int(0)
-                except KeyError:
+                except (KeyError, AttributeError):
                     fuid = int(0)
                 try:
                     fgid = int(os.getgid())
-                except AttributeError:
-                    fgid = int(0)
-                except KeyError:
+                except (KeyError, AttributeError):
                     fgid = int(0)
                 try:
                     import pwd
                     try:
                         userinfo = pwd.getpwuid(os.getuid())
                         funame = userinfo.pw_name
-                    except KeyError:
-                        funame = ""
-                    except AttributeError:
+                    except (KeyError, AttributeError):
                         funame = ""
                 except ImportError:
                     funame = ""
@@ -11799,9 +11134,7 @@ if(py7zr_support):
                     try:
                         groupinfo = grp.getgrgid(os.getgid())
                         fgname = groupinfo.gr_name
-                    except KeyError:
-                        fgname = ""
-                    except AttributeError:
+                    except (KeyError, AttributeError):
                         fgname = ""
                 except ImportError:
                     fgname = ""
@@ -11841,7 +11174,7 @@ def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict_
     return False
 
 
-def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, checksumtype=["crc32", "crc32", "crc32"], formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, checksumtype=["md5", "md5", "md5"], formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, compression, compresswholefile,
                               compressionlevel, followlink, checksumtype, formatspecs, False, True)
@@ -11853,19 +11186,19 @@ def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compress
 PyNeoFile compatibility layer
 """
 
-def make_empty_file_pointer_neo(fp, fmttype=None, checksumtype='crc32', formatspecs=__file_format_multi_dict__, encoding='UTF-8'):
+def make_empty_file_pointer_neo(fp, fmttype=None, checksumtype='md5', formatspecs=__file_format_multi_dict__, encoding='UTF-8'):
     return MakeEmptyFilePointer(fp, fmttype, checksumtype, formatspecs)
 
-def make_empty_archive_file_pointer_neo(fp, fmttype=None, checksumtype='crc32', formatspecs=__file_format_multi_dict__, encoding='UTF-8'):
+def make_empty_archive_file_pointer_neo(fp, fmttype=None, checksumtype='md5', formatspecs=__file_format_multi_dict__, encoding='UTF-8'):
     return make_empty_file_pointer_neo(fp, fmttype, checksumtype, formatspecs, encoding)
 
-def make_empty_file_neo(outfile=None, fmttype=None, checksumtype='crc32', formatspecs=__file_format_multi_dict__, encoding='UTF-8', returnfp=False):
+def make_empty_file_neo(outfile=None, fmttype=None, checksumtype='md5', formatspecs=__file_format_multi_dict__, encoding='UTF-8', returnfp=False):
     return MakeEmptyFile(outfile, fmttype, "auto", False, None, compressionlistalt, checksumtype, formatspecs, returnfp)
 
-def make_empty_archive_file_neo(outfile=None, fmttype=None, checksumtype='crc32', formatspecs=__file_format_multi_dict__, encoding='UTF-8', returnfp=False):
+def make_empty_archive_file_neo(outfile=None, fmttype=None, checksumtype='md5', formatspecs=__file_format_multi_dict__, encoding='UTF-8', returnfp=False):
     return make_empty_file_neo(outfile, fmttype, checksumtype, formatspecs, encoding, returnfp)
 
-def pack_neo(infiles, outfile=None, formatspecs=__file_format_multi_dict__, checksumtypes=["crc32", "crc32", "crc32", "crc32"], encoding="UTF-8", compression="auto", compression_level=None, returnfp=False):
+def pack_neo(infiles, outfile=None, formatspecs=__file_format_multi_dict__, checksumtypes=["md5", "md5", "md5", "md5"], encoding="UTF-8", compression="auto", compression_level=None, returnfp=False):
     return PackArchiveFile(infiles, outfile, False, "auto", compression, False, compression_level, compressionlistalt, False, checksumtypes, [], {}, formatspecs, False, returnfp)
 
 def archive_to_array_neo(infile, formatspecs=__file_format_multi_dict__, listonly=False, skipchecksum=False, uncompress=True, returnfp=False):
@@ -11874,7 +11207,7 @@ def archive_to_array_neo(infile, formatspecs=__file_format_multi_dict__, listonl
 def unpack_neo(infile, outdir='.', formatspecs=__file_format_multi_dict__, skipchecksum=False, uncompress=True, returnfp=False):
     return UnPackArchiveFile(infile, outdir, False, 0, 0, skipchecksum, formatspecs, True, True, False, False, returnfp)
 
-def repack_neo(infile, outfile=None, formatspecs=__file_format_dict__, checksumtypes=["crc32", "crc32", "crc32", "crc32"], compression="auto", compression_level=None, returnfp=False):
+def repack_neo(infile, outfile=None, formatspecs=__file_format_dict__, checksumtypes=["md5", "md5", "md5", "md5"], compression="auto", compression_level=None, returnfp=False):
     return RePackArchiveFile(infile, outfile, "auto", compression, False, compression_level, compressionlistalt, False, 0, 0, checksumtypes, False, [], {}, formatspecs, False, False, returnfp)
 
 def validate_neo(infile, formatspecs=__file_format_multi_dict__, verbose=False, return_details=False, returnfp=False):
@@ -11883,7 +11216,7 @@ def validate_neo(infile, formatspecs=__file_format_multi_dict__, verbose=False, 
 def listfiles_neo(infile, formatspecs=__file_format_multi_dict__, advanced=False, include_dirs=True, returnfp=False):
     return ArchiveFileListFiles(infile, "auto", 0, 0, False, formatspecs, False, True, advanced, returnfp)
 
-def convert_foreign_to_neo(infile, outfile=None, formatspecs=__file_format_multi_dict__, checksumtypes=["crc32", "crc32", "crc32", "crc32"], compression="auto", compression_level=None, returnfp=False):
+def convert_foreign_to_neo(infile, outfile=None, formatspecs=__file_format_multi_dict__, checksumtypes=["md5", "md5", "md5", "md5"], compression="auto", compression_level=None, returnfp=False):
     intmp = InFileToArray(infile, 0, 0, 0, False, True, False, formatspecs, False, False)
     return RePackArchiveFile(intmp, outfile, "auto", compression, False, compression_level, compressionlistalt, False, 0, 0, checksumtypes, False, [], {}, formatspecs, False, False, returnfp)
 
@@ -11925,10 +11258,7 @@ def download_file_from_ftp_file(url):
         ftp_port = 21
     try:
         ftp.connect(urlparts.hostname, ftp_port)
-    except socket.gaierror:
-        log.info("Error With URL "+url)
-        return False
-    except socket.timeout:
+    except (socket.gaierror, socket.timeout):
         log.info("Error With URL "+url)
         return False
     if(urlparts.scheme == "ftps" or isinstance(ftp, FTP_TLS)):
@@ -12016,10 +11346,7 @@ def upload_file_to_ftp_file(ftpfile, url):
         ftp_port = 21
     try:
         ftp.connect(urlparts.hostname, ftp_port)
-    except socket.gaierror:
-        log.info("Error With URL "+url)
-        return False
-    except socket.timeout:
+    except (socket.gaierror, socket.timeout):
         log.info("Error With URL "+url)
         return False
     if(urlparts.scheme == "ftps" or isinstance(ftp, FTP_TLS)):
@@ -12396,10 +11723,7 @@ if(haveparamiko):
                         username=sftp_username, password=sftp_password)
         except paramiko.ssh_exception.SSHException:
             return False
-        except socket.gaierror:
-            log.info("Error With URL "+url)
-            return False
-        except socket.timeout:
+        except (socket.gaierror, socket.timeout):
             log.info("Error With URL "+url)
             return False
         sftp = ssh.open_sftp()
@@ -12453,10 +11777,7 @@ if(haveparamiko):
                         username=sftp_username, password=sftp_password)
         except paramiko.ssh_exception.SSHException:
             return False
-        except socket.gaierror:
-            log.info("Error With URL "+url)
-            return False
-        except socket.timeout:
+        except (socket.gaierror, socket.timeout):
             log.info("Error With URL "+url)
             return False
         sftp = ssh.open_sftp()
@@ -12507,10 +11828,7 @@ if(havepysftp):
                               username=sftp_username, password=sftp_password)
         except paramiko.ssh_exception.SSHException:
             return False
-        except socket.gaierror:
-            log.info("Error With URL "+url)
-            return False
-        except socket.timeout:
+        except (socket.gaierror, socket.timeout):
             log.info("Error With URL "+url)
             return False
         sftpfile = MkTempFile()
@@ -12560,10 +11878,7 @@ if(havepysftp):
                               username=sftp_username, password=sftp_password)
         except paramiko.ssh_exception.SSHException:
             return False
-        except socket.gaierror:
-            log.info("Error With URL "+url)
-            return False
-        except socket.timeout:
+        except (socket.gaierror, socket.timeout):
             log.info("Error With URL "+url)
             return False
         sftpfile.seek(0, 0)
