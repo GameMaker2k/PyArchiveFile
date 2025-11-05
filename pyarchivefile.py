@@ -115,6 +115,16 @@ else:
     bytes_type = bytes
     text_type = str
 
+# Text streams (as provided by Python)
+PY_STDIN_TEXT  = sys.stdin
+PY_STDOUT_TEXT = sys.stdout
+PY_STDERR_TEXT = sys.stderr
+
+# Binary-friendly streams (use .buffer on Py3, fall back on Py2)
+PY_STDIN_BUF  = getattr(sys.stdin,  "buffer", sys.stdin)
+PY_STDOUT_BUF = getattr(sys.stdout, "buffer", sys.stdout)
+PY_STDERR_BUF = getattr(sys.stderr, "buffer", sys.stderr)
+
 # Text vs bytes tuples you can use with isinstance()
 TEXT_TYPES   = (basestring,)                  # "str or unicode" on Py2, "str" on Py3
 BINARY_TYPES = (bytes,) if not PY2 else (str,)  # bytes on Py3, str on Py2
@@ -2383,7 +2393,7 @@ def GetTotalSize(file_list):
             try:
                 total_size += os.path.getsize(item)
             except OSError:
-                sys.stderr.write("Error accessing file {}: {}\n".format(item, e))
+                PY_STDERR_TEXT.write("Error accessing file {}: {}\n".format(item, e))
     return total_size
 
 
@@ -5517,10 +5527,7 @@ def ReadInFileWithContentToArray(infile, fmttype="auto", filestart=0, seekstart=
         currentfilepos = fp.tell()
     elif(infile == "-"):
         fp = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, fp, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin, fp, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, fp, length=__filebuff_size__)
         try:
             fp.seek(0, 2)
         except OSError:
@@ -5671,10 +5678,7 @@ def ReadInFileWithContentToList(infile, fmttype="auto", filestart=0, seekstart=0
         currentfilepos = fp.tell()
     elif(infile == "-"):
         fp = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, fp, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin, fp, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, fp, length=__filebuff_size__)
         try:
             fp.seek(0, 2)
         except OSError:
@@ -6048,10 +6052,7 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
-        if(hasattr(sys.stdout, "buffer")):
-            shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+        shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
     elif(outfile is None):
         fp.seek(0, 0)
         outvar = fp.read()
@@ -6168,10 +6169,10 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
     altinode = formatspecs['use_alt_inode']
     if(verbose):
         logging.basicConfig(format="%(message)s",
-                            stream=sys.stdout, level=logging.DEBUG)
+                            stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     infilelist = []
     if(infiles == "-"):
-        for line in sys.stdin:
+        for line in PY_STDIN_TEXT:
             infilelist.append(line.strip())
         infilelist = list(filter(None, infilelist))
     elif(infiles != "-" and dirlistfromtxt and os.path.exists(infiles) and (os.path.isfile(infiles) or infiles == os.devnull)):
@@ -6489,7 +6490,7 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
         return False
     if(verbose):
         logging.basicConfig(format="%(message)s",
-                            stream=sys.stdout, level=logging.DEBUG)
+                            stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     curinode = 0
     curfid = 0
     inodelist = []
@@ -6498,10 +6499,7 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
     inodetoforminode = {}
     if(infile == "-"):
         infile = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, infile, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin, infile, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
         infile.seek(0, 0)
         if(not infile):
             return False
@@ -6723,7 +6721,7 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
         return False
     if(verbose):
         logging.basicConfig(format="%(message)s",
-                            stream=sys.stdout, level=logging.DEBUG)
+                            stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     curinode = 0
     curfid = 0
     inodelist = []
@@ -6732,10 +6730,7 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
     inodetoforminode = {}
     if(infile == "-"):
         infile = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, infile, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin, infile, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
         infile.seek(0, 0)
         if(not infile):
             return False
@@ -6961,7 +6956,7 @@ if(rarfile_support):
             return False
         if(verbose):
             logging.basicConfig(format="%(message)s",
-                                stream=sys.stdout, level=logging.DEBUG)
+                                stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         curinode = 0
         curfid = 0
         inodelist = []
@@ -7215,7 +7210,7 @@ if(py7zr_support):
             return False
         if(verbose):
             logging.basicConfig(format="%(message)s",
-                                stream=sys.stdout, level=logging.DEBUG)
+                                stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         formver = formatspecs['format_ver']
         fileheaderver = str(int(formver.replace(".", "")))
         curinode = 0
@@ -7399,7 +7394,7 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsond
     if(not hasattr(fp, "write")):
         return False
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     GetDirList = inlist
     if(not GetDirList):
         return False
@@ -7523,10 +7518,7 @@ def AppendFilesWithContentToOutFile(infiles, outfile, dirlistfromtxt=False, fmtt
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
-        if(hasattr(sys.stdout, "buffer")):
-            shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+        shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
     elif(outfile is None):
         fp.seek(0, 0)
         outvar = fp.read()
@@ -7616,10 +7608,7 @@ def AppendListsWithContentToOutFile(inlist, outfile, dirlistfromtxt=False, fmtty
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
-        if(hasattr(sys.stdout, "buffer")):
-            shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+        shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
     elif(outfile is None):
         fp.seek(0, 0)
         outvar = fp.read()
@@ -7696,10 +7685,7 @@ def AppendFilesWithContentFromTarFileToOutFile(infiles, outfile, fmttype="auto",
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
-        if(hasattr(sys.stdout, "buffer")):
-            shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+        shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
     elif(outfile is None):
         fp.seek(0, 0)
         outvar = fp.read()
@@ -7791,10 +7777,7 @@ def AppendFilesWithContentFromZipFileToOutFile(infiles, outfile, fmttype="auto",
             pass
     if(outfile == "-"):
         fp.seek(0, 0)
-        if(hasattr(sys.stdout, "buffer")):
-            shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+        shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
     elif(outfile is None):
         fp.seek(0, 0)
         outvar = fp.read()
@@ -7891,10 +7874,7 @@ if(rarfile_support):
                 pass
         if(outfile == "-"):
             fp.seek(0, 0)
-            if(hasattr(sys.stdout, "buffer")):
-                shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-            else:
-                shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+            shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
         elif(outfile is None):
             fp.seek(0, 0)
             outvar = fp.read()
@@ -7991,10 +7971,7 @@ if(py7zr_support):
                 pass
         if(outfile == "-"):
             fp.seek(0, 0)
-            if(hasattr(sys.stdout, "buffer")):
-                shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-            else:
-                shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+            shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
         elif(outfile is None):
             fp.seek(0, 0)
             outvar = fp.read()
@@ -9836,7 +9813,7 @@ def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
         return PackArchiveFileFromTarFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, checksumtype, extradata, jsondata, formatspecs, verbose, returnfp)
     elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
@@ -9919,7 +9896,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
                         formatspecs=__file_format_multi_dict__,  # keep default like original
                         seektoend=False, verbose=False, returnfp=False):
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
 
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
@@ -9946,10 +9923,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
 
     elif(infile == "-"):
         fp = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, fp, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin.buffer, fp, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, fp, length=__filebuff_size__)
         fp.seek(filestart, 0)
         fp = UncompressFileAlt(fp, formatspecs, filestart)
         checkcompressfile = CheckCompressionSubType(fp, formatspecs, filestart, True)
@@ -10669,7 +10643,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             compression = "auto"
 
         if verbose:
-            logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+            logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
 
         # No files?
         if not listarrayfiles.get('ffilelist'):
@@ -10903,10 +10877,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
 
     if outfile == "-":
         fp.seek(0, 0)
-        if hasattr(sys.stdout, "buffer"):
-            shutil.copyfileobj(fp, sys.stdout.buffer, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(fp, sys.stdout, length=__filebuff_size__)
+        shutil.copyfileobj(fp, PY_STDOUT_BUF, length=__filebuff_size__)
     elif outfile is None:
         fp.seek(0, 0)
         outvar = fp.read()
@@ -10965,7 +10936,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
     if(outdir is not None):
         outdir = RemoveWindowsPath(outdir)
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(isinstance(infile, dict)):
         listarrayfiles = infile
     else:
@@ -11241,7 +11212,7 @@ def ftype_to_str(ftype):
 
 def ArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, seektoend=False, verbose=False, newstyle=False, returnfp=False):
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(isinstance(infile, dict)):
         listarrayfileslist = [infile]
     if(isinstance(infile, list)):
@@ -11354,13 +11325,10 @@ def ArchiveFileStringListFiles(instr, filestart=0, seekstart=0, seekend=0, skipc
 
 def TarFileListFiles(infile, verbose=False, returnfp=False):
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(infile == "-"):
         infile = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, infile, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin, infile, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
         infile.seek(0, 0)
         if(not infile):
             return False
@@ -11479,13 +11447,10 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
 
 def ZipFileListFiles(infile, verbose=False, returnfp=False):
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(infile == "-"):
         infile = MkTempFile()
-        if(hasattr(sys.stdin, "buffer")):
-            shutil.copyfileobj(sys.stdin.buffer, infile, length=__filebuff_size__)
-        else:
-            shutil.copyfileobj(sys.stdin, infile, length=__filebuff_size__)
+        shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
         infile.seek(0, 0)
         if(not infile):
             return False
@@ -11617,7 +11582,7 @@ if(not rarfile_support):
 if(rarfile_support):
     def RarFileListFiles(infile, verbose=False, returnfp=False):
         if(verbose):
-            logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+            logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         if(not os.path.exists(infile) or not os.path.isfile(infile)):
             return False
         if(not rarfile.is_rarfile(infile) and not rarfile.is_rarfile_sfx(infile)):
@@ -11754,7 +11719,7 @@ if(not py7zr_support):
 if(py7zr_support):
     def SevenZipFileListFiles(infile, verbose=False, returnfp=False):
         if(verbose):
-            logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+            logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         if(not os.path.exists(infile) or not os.path.isfile(infile)):
             return False
         lcfi = 0
@@ -11857,7 +11822,7 @@ if(py7zr_support):
 
 def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict__, seektoend=False, newstyle=False, returnfp=False):
     if(verbose):
-        logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
