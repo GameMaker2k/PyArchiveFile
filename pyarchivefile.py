@@ -4176,6 +4176,11 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
             fprejsoncontent = ""
             fjsonrawcontent = fprejsoncontent
             fjsoncontent = {}
+    elif(not testyaml and fjsontype == "yaml"):
+        fjsoncontent = {}
+        fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
+        fprejsoncontent = ""
+        fjsonrawcontent = fprejsoncontent
     elif(fjsontype=="list"):
         fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
         flisttmp = MkTempFile()
@@ -4371,6 +4376,11 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
             fprejsoncontent = ""
             fjsonrawcontent = fprejsoncontent
             fjsoncontent = {}
+    elif(not testyaml and fjsontype == "yaml"):
+        fjsoncontent = {}
+        fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
+        fprejsoncontent = ""
+        fjsonrawcontent = fprejsoncontent
     elif(fjsontype=="list"):
         fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
         flisttmp = MkTempFile()
@@ -4579,6 +4589,11 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
             fprejsoncontent = ""
             fjsonrawcontent = fprejsoncontent
             fjsoncontent = {}
+    elif(not testyaml and fjsontype == "yaml"):
+        fjsoncontent = {}
+        fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
+        fprejsoncontent = ""
+        fjsonrawcontent = fprejsoncontent
     elif(fjsontype=="list"):
         fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
         flisttmp = MkTempFile()
