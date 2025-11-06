@@ -3652,81 +3652,6 @@ def _bytes_to_int(b):
         value = (value << 8) | ch
     return value
 
-try:
-    hashlib_guaranteed
-except NameError:
-    hashlib_guaranteed = set(a.lower() for a in hashlib.algorithms_available)
-
-# =========================
-#     Public checksum API
-# =========================
-def GetHeaderChecksum(inlist=None, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
-    """
-    Serialize header fields (list/tuple => joined with delimiter + trailing delimiter;
-    or a single field) and compute the requested checksum. Returns lowercase hex.
-    """
-    algo_key = (checksumtype or "md5").lower()
-
-    if CheckSumSupport(algo_key, hashlib_guaranteed):
-        h = hashlib.new(algo_key)
-        h.update(hdr_bytes)
-        return h.hexdigest().lower()
-
-    return "0"
-
-def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
-    """
-    Accepts bytes/str/file-like.
-      - Hashlib algos: streamed in 1 MiB chunks.
-      - CRC algos (crc16_ansi/ccitt/x25/kermit, crc64_iso/ecma): streamed via CRCContext for file-like.
-      - Falls back to one-shot for non-file-like inputs.
-    """
-    algo_key = (checksumtype or "md5").lower()
-
-    # file-like streaming
-    if hasattr(inbytes, "read"):
-        # hashlib
-        if CheckSumSupport(algo_key, hashlib_guaranteed):
-            h = hashlib.new(algo_key)
-            while True:
-                chunk = inbytes.read(1 << 20)
-                if not chunk:
-                    break
-                if not isinstance(chunk, (bytes, bytearray, memoryview)):
-                    chunk = bytes(bytearray(chunk))
-                h.update(chunk)
-            return h.hexdigest().lower()
-
-        # not known streaming algo: fallback to one-shot bytes
-        data = inbytes.read()
-        if not isinstance(data, (bytes, bytearray, memoryview)):
-            data = bytes(bytearray(data))
-    else:
-        data = _to_bytes(inbytes) if (encodedata or not isinstance(inbytes, (bytes, bytearray, memoryview))) else inbytes
-        data = bytes(data)
-
-    # one-shot
-    if CheckSumSupport(algo_key, hashlib_guaranteed):
-        h = hashlib.new(algo_key)
-        h.update(data)
-        return h.hexdigest().lower()
-
-    return "0"
-
-def ValidateHeaderChecksum(inlist=None, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
-    calc = GetHeaderChecksum(inlist, checksumtype, True, formatspecs)
-    want = (inchecksum or "0").strip().lower()
-    if want.startswith("0x"):
-        want = want[2:]
-    return hmac.compare_digest(want, calc)
-
-def ValidateFileChecksum(infile, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
-    calc = GetFileChecksum(infile, checksumtype, True, formatspecs)
-    want = (inchecksum or "0").strip().lower()
-    if want.startswith("0x"):
-        want = want[2:]
-    return hmac.compare_digest(want, calc)
-
 # =========================
 #     Public checksum API
 # =========================
@@ -3762,6 +3687,7 @@ def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__
     # file-like streaming
     if hasattr(inbytes, "read"):
         # hashlib
+
         if CheckSumSupport(algo_key, hashlib_guaranteed):
             h = hashlib.new(algo_key)
             while True:
@@ -3782,6 +3708,7 @@ def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__
         data = bytes(data)
 
     # one-shot
+
     if CheckSumSupport(algo_key, hashlib_guaranteed):
         h = hashlib.new(algo_key)
         h.update(data)
@@ -3841,40 +3768,6 @@ def GetDataFromArrayAlt(structure, path, default=None):
         else:
             return default
     return element
-
-
-def GetHeaderChecksum(inlist=[], checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
-    fileheader = AppendNullBytes(inlist, formatspecs['format_delimiter']) if isinstance(
-        inlist, list) else AppendNullByte(inlist, formatspecs['format_delimiter'])
-    if encodedata and hasattr(fileheader, "encode"):
-        fileheader = fileheader.encode('UTF-8')
-    if CheckSumSupport(checksumtype, hashlib_guaranteed):
-        checksumoutstr = hashlib.new(checksumtype)
-        checksumoutstr.update(fileheader)
-        return checksumoutstr.hexdigest().lower()
-    return format(0, 'x').lower()
-
-
-def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__file_format_dict__):
-    if encodedata and hasattr(inbytes, "encode"):
-        inbytes = inbytes.encode('UTF-8')
-    if CheckSumSupport(checksumtype, hashlib_guaranteed):
-        checksumoutstr = hashlib.new(checksumtype)
-        checksumoutstr.update(inbytes)
-        return checksumoutstr.hexdigest().lower()
-    return format(0, 'x').lower()
-
-
-def ValidateHeaderChecksum(inlist=[], checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
-    infileheadercshex = GetHeaderChecksum(
-        inlist, checksumtype, True, formatspecs).lower()
-    return inchecksum.lower() == infileheadercshex
-
-
-def ValidateFileChecksum(infile, checksumtype="md5", inchecksum="0", formatspecs=__file_format_dict__):
-    catinfilecshex = GetFileChecksum(
-        infile, checksumtype, True, formatspecs).lower()
-    return inchecksum.lower() == catinfilecshex
 
 
 # ========= pushback-aware delimiter reader =========
@@ -4298,7 +4191,7 @@ def ReadFileHeaderDataWithContent(fp, listonly=False, uncompress=True, skipcheck
             fp.seek(fcsize, 1)
     fcontents.seek(0, 0)
     newfccs = GetFileChecksum(
-        fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+        fcontents, HeaderOut[-3].lower(), False, formatspecs)
     fcontents.seek(0, 0)
     if(fccs != newfccs and not skipchecksum and not listonly):
         VerbosePrintOut("File Content Checksum Error with file " +
@@ -4477,7 +4370,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
         pyhascontents = False
     fcontents.seek(0, 0)
     newfccs = GetFileChecksum(
-        fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+        fcontents, HeaderOut[-3].lower(), False, formatspecs)
     fcontents.seek(0, 0)
     if(fccs != newfccs and not skipchecksum and not listonly):
         VerbosePrintOut("File Content Checksum Error with file " +
@@ -4497,7 +4390,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
             cfcontents.close()
             fcontents.seek(0, 0)
             fccs = GetFileChecksum(
-                fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+                fcontents, HeaderOut[-3].lower(), False, formatspecs)
     fcontentend = fp.tell()
     if(re.findall("^\\+([0-9]+)", fseeknextfile)):
         fseeknextasnum = int(fseeknextfile.replace("+", ""))
@@ -4662,7 +4555,7 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
         pyhascontents = False
     fcontents.seek(0, 0)
     newfccs = GetFileChecksum(
-        fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+        fcontents, HeaderOut[-3].lower(), False, formatspecs)
     if(fccs != newfccs and not skipchecksum and not listonly):
         VerbosePrintOut("File Content Checksum Error with file " +
                         fname + " at offset " + str(fcontentstart))
@@ -4681,7 +4574,7 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
             cfcontents.close()
             fcontents.seek(0, 0)
             fccs = GetFileChecksum(
-                fcontents.read(), HeaderOut[-3].lower(), False, formatspecs)
+                fcontents, HeaderOut[-3].lower(), False, formatspecs)
     fcontentend = fp.tell()
     if(re.findall("^\\+([0-9]+)", fseeknextfile)):
         fseeknextasnum = int(fseeknextfile.replace("+", ""))
@@ -4871,7 +4764,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
                 prefcontents.write(fp.read(prefsize))
                 prefcontents.seek(0, 0)
                 prenewfccs = GetFileChecksum(
-                    prefcontents.read(), preheaderdata[-3].lower(), False, formatspecs)
+                    prefcontents, preheaderdata[-3].lower(), False, formatspecs)
                 prefccs = preheaderdata[-1]
                 pyhascontents = True
                 if(prefccs != prenewfccs and not skipchecksum):
@@ -9160,12 +9053,18 @@ def CheckSumSupport(checkfor, guaranteed=True):
         try:
             hash_list = sorted(list(hashlib.algorithms_guaranteed))
         except AttributeError:
-            hash_list = sorted(list(hashlib.algorithms))
+            try:
+                hash_list = sorted(list(hashlib.algorithms))
+            except AttributeError:
+                hash_list = sorted(list(a.lower() for a in hashlib.algorithms_available))
     else:
         try:
             hash_list = sorted(list(hashlib.algorithms_available))
         except AttributeError:
-            hash_list = sorted(list(hashlib.algorithms))
+            try:
+                hash_list = sorted(list(hashlib.algorithms))
+            except AttributeError:
+                hash_list = sorted(list(a.lower() for a in hashlib.algorithms_available))
     checklistout = hash_list
     if(checkfor in checklistout):
         return True
