@@ -9553,7 +9553,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
             VerbosePrintOut(outfname)
             VerbosePrintOut("Record Number " + str(il) + "; File ID " + str(fid) + "; iNode Number " + str(finode))
 
-        if(outfcs == infcs):
+        if(hmac.compare_digest(infcs, outfcs)):
             if(verbose):
                 VerbosePrintOut("File Header Checksum Passed at offset " + str(outfhstart))
                 VerbosePrintOut("'" + outfcs + "' == " + "'" + infcs + "'")
@@ -9565,7 +9565,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
                 VerbosePrintOut("'" + outfcs + "' != " + "'" + infcs + "'")
 
         if(outfjsonsize > 0):
-            if(outfjsonchecksum == injsonfcs):
+            if(hmac.compare_digest(injsonfcs, outfjsonchecksum)):
                 if(verbose):
                     VerbosePrintOut("File JSON Data Checksum Passed at offset " + str(outfjstart))
                     VerbosePrintOut("'" + outfjsonchecksum + "' == " + "'" + injsonfcs + "'")
