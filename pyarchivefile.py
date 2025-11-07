@@ -647,7 +647,7 @@ __version_date_info__ = (2025, 11, 6, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id$"
+__revision_id__ = "$Id: ac98f2d8fa689bbcf7939f892030aad675a7d5fe $"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -10138,7 +10138,7 @@ def ArchiveFileArrayToArrayIndex(inarray, returnfp=False):
     return out
 
 
-def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=None,  followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=None, skipchecksum=False, extradata=None, jsondata=None, formatspecs=None, seektoend=False, verbose=False, returnfp=False):
+def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt,  followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=None, seektoend=False, verbose=False, returnfp=False):
     # ---------- Safe defaults ----------
     if compressionuselist is None:
         compressionuselist = compressionlistalt
@@ -10244,7 +10244,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         if lenlist != fnumfiles:
             fnumfiles = lenlist
 
-        AppendFileHeader(fp, fnumfiles, listarrayfiles.get('fencoding', 'utf-8'), [], checksumtype[0], formatspecs)
+        AppendFileHeader(fp, fnumfiles, listarrayfiles.get('fencoding', 'utf-8'), listarrayfiles['fextradata'], listarrayfiles['fjsondata'], [checksumtype[0], checksumtype[1]], formatspecs)
 
         # loop counters
         lcfi = 0
@@ -10435,7 +10435,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
 
             AppendFileHeaderWithContent(
                 fp, tmpoutlist, extradata, jsondata, fcontents.read(),
-                [checksumtype[1], checksumtype[2], checksumtype[3]], formatspecs
+                [checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs
             )
             try:
                 fcontents.close()
@@ -10481,7 +10481,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             pass
         return True
 
-def RePackMultipleArchiveFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=None,  followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=None, skipchecksum=False, extradata=None, jsondata=None, formatspecs=None, seektoend=False, verbose=False, returnfp=False):
+def RePackMultipleArchiveFile(infiles, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt,  followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=None, seektoend=False, verbose=False, returnfp=False):
     if not isinstance(infiles, list):
         infiles = [infiles]
     returnout = False
@@ -10496,14 +10496,14 @@ def RePackMultipleArchiveFile(infiles, outfile, fmttype="auto", compression="aut
         return True
     return returnout
 
-def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+def RePackArchiveFileFromString(instr, outfile, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt,  followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=None, seektoend=False, verbose=False, returnfp=False):
     fp = MkTempFile(instr)
     listarrayfiles = RePackArchiveFile(fp, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, followlink, filestart, seekstart, seekend,
                                      checksumtype, skipchecksum, extradata, jsondata, formatspecs, seektoend, verbose, returnfp)
     return listarrayfiles
 
 
-def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="auto", compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, followlink=False, filestart=0, seekstart=0, seekend=0, checksumtype=["md5", "md5", "md5", "md5", "md5"], skipchecksum=False, extradata=[], jsondata={}, formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, fmttype, compression, compresswholefile,
                               compressionlevel, compressionuselist, followlink, checksumtype, extradata, formatspecs, verbose, True)
