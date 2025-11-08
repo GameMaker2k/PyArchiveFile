@@ -5927,7 +5927,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
         if(hasattr(os.path, "isjunction") and os.path.isjunction(fname)):
             ftype = 13
         elif(stat.S_ISREG(fpremode)):
-            if(hasattr(fstatinfo, "st_blocks") and fstatinfo.st_blocks * 512 < fstatinfo.st_size):
+            if(hasattr(fstatinfo, "st_blocks") and fstatinfo.st_size > 0 and fstatinfo.st_blocks * 512 < fstatinfo.st_size):
                 ftype = 12
             else:
                 ftype = 0
@@ -5953,31 +5953,29 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
             ftype = 0
         flinkname = ""
         fcurfid = format(int(curfid), 'x').lower()
-        if not followlink and finode != 0:
+        if(not followlink and finode != 0):
             unique_id = (fstatinfo.st_dev, finode)
-            if ftype != 1:
-                if unique_id in inodelist:
+            if(ftype != 1):
+                if(unique_id in inodetofile):
                     # Hard link detected
                     ftype = 1
                     flinkname = inodetofile[unique_id]
-                    if altinode:
-                        fcurinode = format(int(unique_id[1]), 'x').lower()
-                    else:
-                        fcurinode = format(int(inodetoforminode[unique_id]), 'x').lower()
                 else:
-                    # New inode
-                    inodelist.append(unique_id)
+                    # First time seeing this inode
                     inodetofile[unique_id] = fname
+                if(unique_id not in inodetoforminode):
                     inodetoforminode[unique_id] = curinode
-                    if altinode:
-                        fcurinode = format(int(unique_id[1]), 'x').lower()
-                    else:
-                        fcurinode = format(int(curinode), 'x').lower()
-                    curinode += 1
+                    curinode = curinode + 1
+                if(altinode):
+                    # altinode == True → use real inode number
+                    fcurinode = format(int(unique_id[1]), 'x').lower()
+                else:
+                    # altinode == False → use synthetic inode id
+                    fcurinode = format(int(inodetoforminode[unique_id]), 'x').lower()
         else:
             # Handle cases where inodes are not supported or symlinks are followed
             fcurinode = format(int(curinode), 'x').lower()
-            curinode += 1
+            curinode = curinode + 1
         curfid = curfid + 1
         if(ftype == 2):
             flinkname = os.readlink(fname)
@@ -6049,7 +6047,6 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
         fcencoding = "UTF-8"
         curcompression = "none"
         if not followlink and ftype in data_types:
-            print("not follow ",ftype)
             with open(fname, "rb") as fpc:
                 shutil.copyfileobj(fpc, fcontents, length=__filebuff_size__)
                 typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
