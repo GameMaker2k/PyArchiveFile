@@ -4297,40 +4297,52 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
     fbasedir = os.path.dirname(fname)
     flinkname = HeaderOut[6]
     fsize = int(HeaderOut[7], 16)
-    fatime = int(HeaderOut[8], 16)
-    fmtime = int(HeaderOut[9], 16)
-    fctime = int(HeaderOut[10], 16)
-    fbtime = int(HeaderOut[11], 16)
-    fmode = int(HeaderOut[12], 16)
+    fblksize = int(HeaderOut[8], 16)
+    fblocks = int(HeaderOut[9], 16)
+    fflags = int(HeaderOut[10], 16)
+    fatime = int(HeaderOut[11], 16)
+    fmtime = int(HeaderOut[12], 16)
+    fctime = int(HeaderOut[13], 16)
+    fbtime = int(HeaderOut[14], 16)
+    fmode = int(HeaderOut[15], 16)
     fchmode = stat.S_IMODE(fmode)
     ftypemod = stat.S_IFMT(fmode)
-    fwinattributes = int(HeaderOut[13], 16)
-    fcompression = HeaderOut[14]
-    fcsize = int(HeaderOut[15], 16)
-    fuid = int(HeaderOut[16], 16)
-    funame = HeaderOut[17]
-    fgid = int(HeaderOut[18], 16)
-    fgname = HeaderOut[19]
-    fid = int(HeaderOut[20], 16)
-    finode = int(HeaderOut[21], 16)
-    flinkcount = int(HeaderOut[22], 16)
-    fdev = int(HeaderOut[23], 16)
-    fdev_minor = int(HeaderOut[24], 16)
-    fdev_major = int(HeaderOut[25], 16)
-    fseeknextfile = HeaderOut[26]
-    fjsontype = HeaderOut[27]
-    fjsonlen = int(HeaderOut[28], 16)
-    fjsonsize = int(HeaderOut[29], 16)
-    fjsonchecksumtype = HeaderOut[30]
-    fjsonchecksum = HeaderOut[31]
-    fextrasize = int(HeaderOut[32], 16)
-    fextrafields = int(HeaderOut[33], 16)
+    fwinattributes = int(HeaderOut[16], 16)
+    fcompression = HeaderOut[17]
+    fcsize = int(HeaderOut[18], 16)
+    fuid = int(HeaderOut[19], 16)
+    funame = HeaderOut[20]
+    fgid = int(HeaderOut[21], 16)
+    fgname = HeaderOut[22]
+    fid = int(HeaderOut[23], 16)
+    finode = int(HeaderOut[24], 16)
+    flinkcount = int(HeaderOut[25], 16)
+    fdev = int(HeaderOut[26], 16)
+    fdev_minor = int(HeaderOut[27], 16)
+    fdev_major = int(HeaderOut[28], 16)
+    fseeknextfile = HeaderOut[29]
+    fjsontype = HeaderOut[30]
+    fjsonlen = int(HeaderOut[31], 16)
+    fjsonsize = int(HeaderOut[32], 16)
+    fjsonchecksumtype = HeaderOut[33]
+    fjsonchecksum = HeaderOut[34]
+    fextrasize = int(HeaderOut[35], 16)
+    fextrafields = int(HeaderOut[36], 16)
     fextrafieldslist = []
-    extrastart = 34
+    extrastart = 37
     extraend = extrastart + fextrafields
     while(extrastart < extraend):
         fextrafieldslist.append(HeaderOut[extrastart])
         extrastart = extrastart + 1
+    fvendorfieldslist = []
+    fvendorfields = 0;
+    if(len(HeaderOut)>41):
+        extrastart = extraend
+        extraend = len(HeaderOut) - 4
+        while(extrastart < extraend):
+            fvendorfieldslist.append(HeaderOut[extrastart])
+            extrastart = extrastart + 1
+            fvendorfields = fvendorfields + 1
     if(fextrafields==1):
         try:
             fextrafieldslist = json.loads(base64.b64decode(fextrafieldslist[0]).decode("UTF-8"))
@@ -4483,8 +4495,8 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
     fcontents.seek(0, 0)
     if(not contentasfile):
         fcontents = fcontents.read()
-    outlist = {'fheadersize': fheadsize, 'fhstart': fheaderstart, 'fhend': fhend, 'ftype': ftype, 'fencoding': fencoding, 'fcencoding': fcencoding, 'fname': fname, 'fbasedir': fbasedir, 'flinkname': flinkname, 'fsize': fsize, 'fatime': fatime, 'fmtime': fmtime, 'fctime': fctime, 'fbtime': fbtime, 'fmode': fmode, 'fchmode': fchmode, 'ftypemod': ftypemod, 'fwinattributes': fwinattributes, 'fcompression': fcompression, 'fcsize': fcsize, 'fuid': fuid, 'funame': funame, 'fgid': fgid, 'fgname': fgname, 'finode': finode, 'flinkcount': flinkcount,
-               'fdev': fdev, 'fminor': fdev_minor, 'fmajor': fdev_major, 'fseeknextfile': fseeknextfile, 'fheaderchecksumtype': HeaderOut[-4], 'fjsonchecksumtype': fjsonchecksumtype, 'fcontentchecksumtype': HeaderOut[-3], 'fnumfields': fnumfields + 2, 'frawheader': HeaderOut, 'fextrafields': fextrafields, 'fextrafieldsize': fextrasize, 'fextradata': fextrafieldslist, 'fjsontype': fjsontype, 'fjsonlen': fjsonlen, 'fjsonsize': fjsonsize, 'fjsonrawdata': fjsonrawcontent, 'fjsondata': fjsoncontent, 'fjstart': fjstart, 'fjend': fjend, 'fheaderchecksum': fcs, 'fjsonchecksum': fjsonchecksum, 'fcontentchecksum': fccs, 'fhascontents': pyhascontents, 'fcontentstart': fcontentstart, 'fcontentend': fcontentend, 'fcontentasfile': contentasfile, 'fcontents': fcontents}
+    outlist = {'fheadersize': fheadsize, 'fhstart': fheaderstart, 'fhend': fhend, 'ftype': ftype, 'fencoding': fencoding, 'fcencoding': fcencoding, 'fname': fname, 'fbasedir': fbasedir, 'flinkname': flinkname, 'fsize': fsize, 'fblksize': fblksize, 'fblocks': fblocks, 'fflags': fflags, 'fatime': fatime, 'fmtime': fmtime, 'fctime': fctime, 'fbtime': fbtime, 'fmode': fmode, 'fchmode': fchmode, 'ftypemod': ftypemod, 'fwinattributes': fwinattributes, 'fcompression': fcompression, 'fcsize': fcsize, 'fuid': fuid, 'funame': funame, 'fgid': fgid, 'fgname': fgname, 'finode': finode, 'flinkcount': flinkcount,
+               'fdev': fdev, 'fminor': fdev_minor, 'fmajor': fdev_major, 'fseeknextfile': fseeknextfile, 'fheaderchecksumtype': HeaderOut[-4], 'fjsonchecksumtype': fjsonchecksumtype, 'fcontentchecksumtype': HeaderOut[-3], 'fnumfields': fnumfields + 2, 'frawheader': HeaderOut, 'fvendorfields': fvendorfields, 'fvendordata': fvendorfieldslist, 'fextrafields': fextrafields, 'fextrafieldsize': fextrasize, 'fextradata': fextrafieldslist, 'fjsontype': fjsontype, 'fjsonlen': fjsonlen, 'fjsonsize': fjsonsize, 'fjsonrawdata': fjsonrawcontent, 'fjsondata': fjsoncontent, 'fjstart': fjstart, 'fjend': fjend, 'fheaderchecksum': fcs, 'fjsonchecksum': fjsonchecksum, 'fcontentchecksum': fccs, 'fhascontents': pyhascontents, 'fcontentstart': fcontentstart, 'fcontentend': fcontentend, 'fcontentasfile': contentasfile, 'fcontents': fcontents}
     return outlist
 
 
@@ -4511,36 +4523,39 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
     fbasedir = os.path.dirname(fname)
     flinkname = HeaderOut[6]
     fsize = int(HeaderOut[7], 16)
-    fatime = int(HeaderOut[8], 16)
-    fmtime = int(HeaderOut[9], 16)
-    fctime = int(HeaderOut[10], 16)
-    fbtime = int(HeaderOut[11], 16)
-    fmode = int(HeaderOut[12], 16)
+    fblksize = int(HeaderOut[8], 16)
+    fblocks = int(HeaderOut[9], 16)
+    fflags = int(HeaderOut[10], 16)
+    fatime = int(HeaderOut[11], 16)
+    fmtime = int(HeaderOut[12], 16)
+    fctime = int(HeaderOut[13], 16)
+    fbtime = int(HeaderOut[14], 16)
+    fmode = int(HeaderOut[15], 16)
     fchmode = stat.S_IMODE(fmode)
     ftypemod = stat.S_IFMT(fmode)
-    fwinattributes = int(HeaderOut[13], 16)
-    fcompression = HeaderOut[14]
-    fcsize = int(HeaderOut[15], 16)
-    fuid = int(HeaderOut[16], 16)
-    funame = HeaderOut[17]
-    fgid = int(HeaderOut[18], 16)
-    fgname = HeaderOut[19]
-    fid = int(HeaderOut[20], 16)
-    finode = int(HeaderOut[21], 16)
-    flinkcount = int(HeaderOut[22], 16)
-    fdev = int(HeaderOut[23], 16)
-    fdev_minor = int(HeaderOut[24], 16)
-    fdev_major = int(HeaderOut[25], 16)
-    fseeknextfile = HeaderOut[26]
-    fjsontype = HeaderOut[27]
-    fjsonlen = int(HeaderOut[28], 16)
-    fjsonsize = int(HeaderOut[29], 16)
-    fjsonchecksumtype = HeaderOut[30]
-    fjsonchecksum = HeaderOut[31]
-    fextrasize = int(HeaderOut[32], 16)
-    fextrafields = int(HeaderOut[33], 16)
+    fwinattributes = int(HeaderOut[16], 16)
+    fcompression = HeaderOut[17]
+    fcsize = int(HeaderOut[18], 16)
+    fuid = int(HeaderOut[19], 16)
+    funame = HeaderOut[20]
+    fgid = int(HeaderOut[21], 16)
+    fgname = HeaderOut[22]
+    fid = int(HeaderOut[23], 16)
+    finode = int(HeaderOut[24], 16)
+    flinkcount = int(HeaderOut[25], 16)
+    fdev = int(HeaderOut[26], 16)
+    fdev_minor = int(HeaderOut[27], 16)
+    fdev_major = int(HeaderOut[28], 16)
+    fseeknextfile = HeaderOut[29]
+    fjsontype = HeaderOut[30]
+    fjsonlen = int(HeaderOut[31], 16)
+    fjsonsize = int(HeaderOut[32], 16)
+    fjsonchecksumtype = HeaderOut[33]
+    fjsonchecksum = HeaderOut[34]
+    fextrasize = int(HeaderOut[35], 16)
+    fextrafields = int(HeaderOut[36], 16)
     fextrafieldslist = []
-    extrastart = 34
+    extrastart = 37
     extraend = extrastart + fextrafields
     while(extrastart < extraend):
         fextrafieldslist.append(HeaderOut[extrastart])
@@ -4694,7 +4709,7 @@ def ReadFileHeaderDataWithContentToList(fp, listonly=False, contentasfile=False,
     fcontents.seek(0, 0)
     if(not contentasfile):
         fcontents = fcontents.read()
-    outlist = [ftype, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression, fcsize, fuid, funame, fgid, fgname, fid,
+    outlist = [ftype, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression, fcsize, fuid, funame, fgid, fgname, fid,
                finode, flinkcount, fdev, fdev_minor, fdev_major, fseeknextfile, fjsoncontent, fextrafieldslist, HeaderOut[-4], HeaderOut[-3], fcontents]
     return outlist
 
@@ -5924,14 +5939,14 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
         except AttributeError:
             FullSizeFilesAlt += fstatinfo.st_size
         fblksize = 0
-        fblocks = 0
-        fflags = 0
         if(hasattr(fstatinfo, "st_blksize")):
-            fblksize = int(fstatinfo.st_blksize)
+            fblksize = format(int(fstatinfo.st_blksize), 'x').lower()
+        fblocks = 0
         if(hasattr(fstatinfo, "st_blocks")):
-            fblocks = int(fstatinfo.st_blocks)
+            fblocks = format(int(fstatinfo.st_blocks), 'x').lower()
+        fflags = 0
         if(hasattr(fstatinfo, "st_flags")):
-            fflags = int(fstatinfo.st_flags)
+            fflags = format(int(fstatinfo.st_flags), 'x').lower()
         ftype = 0
         if(hasattr(os.path, "isjunction") and os.path.isjunction(fname)):
             ftype = 13
@@ -6156,7 +6171,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
             fcompression = ""
         fcontents.seek(0, 0)
         ftypehex = format(ftype, 'x').lower()
-        tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
+        tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
                       fcsize, fuid, funame, fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, "+"+str(len(formatspecs['format_delimiter']))]
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs)
@@ -6255,6 +6270,15 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
         fpremode = member.mode
         ffullmode = member.mode
         flinkcount = 0
+        fblksize = 0
+        if(hasattr(fstatinfo, "st_blksize")):
+            fblksize = format(int(fstatinfo.st_blksize), 'x').lower()
+        fblocks = 0
+        if(hasattr(fstatinfo, "st_blocks")):
+            fblocks = format(int(fstatinfo.st_blocks), 'x').lower()
+        fflags = 0
+        if(hasattr(fstatinfo, "st_flags")):
+            fflags = format(int(fstatinfo.st_flags), 'x').lower()
         ftype = 0
         if(member.isreg()):
             ffullmode = member.mode + stat.S_IFREG
@@ -6378,7 +6402,7 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
             fcompression = ""
         fcontents.seek(0, 0)
         ftypehex = format(ftype, 'x').lower()
-        tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
+        tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
                       fcsize, fuid, funame, fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, "+"+str(len(formatspecs['format_delimiter']))]
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs)
@@ -6451,6 +6475,15 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
         else:
             fpremode = int(stat.S_IFREG | 0x1b6)
         flinkcount = 0
+        fblksize = 0
+        if(hasattr(fstatinfo, "st_blksize")):
+            fblksize = format(int(fstatinfo.st_blksize), 'x').lower()
+        fblocks = 0
+        if(hasattr(fstatinfo, "st_blocks")):
+            fblocks = format(int(fstatinfo.st_blocks), 'x').lower()
+        fflags = 0
+        if(hasattr(fstatinfo, "st_flags")):
+            fflags = format(int(fstatinfo.st_flags), 'x').lower()
         ftype = 0
         if ((hasattr(member, "is_dir") and member.is_dir()) or member.filename.endswith('/')):
             ftype = 5
@@ -6592,7 +6625,7 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
             fcompression = ""
         fcontents.seek(0, 0)
         ftypehex = format(ftype, 'x').lower()
-        tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
+        tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
                       fcsize, fuid, funame, fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, "+"+str(len(formatspecs['format_delimiter']))]
         AppendFileHeaderWithContent(
             fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs)
@@ -6686,6 +6719,15 @@ else:
             fcompression = ""
             fcsize = format(int(0), 'x').lower()
             flinkcount = 0
+            fblksize = 0
+            if(hasattr(fstatinfo, "st_blksize")):
+                fblksize = format(int(fstatinfo.st_blksize), 'x').lower()
+            fblocks = 0
+            if(hasattr(fstatinfo, "st_blocks")):
+                fblocks = format(int(fstatinfo.st_blocks), 'x').lower()
+            fflags = 0
+            if(hasattr(fstatinfo, "st_flags")):
+                fflags = format(int(fstatinfo.st_flags), 'x').lower()
             ftype = 0
             if(member.is_file()):
                 ftype = 0
@@ -6825,7 +6867,7 @@ else:
                 fcompression = ""
             fcontents.seek(0, 0)
             ftypehex = format(ftype, 'x').lower()
-            tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
+            tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
                           fcsize, fuid, funame, fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, "+"+str(len(formatspecs['format_delimiter']))]
             AppendFileHeaderWithContent(
                 fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs)
@@ -6888,6 +6930,15 @@ else:
             fcompression = ""
             fcsize = format(int(0), 'x').lower()
             flinkcount = 0
+            fblksize = 0
+            if(hasattr(fstatinfo, "st_blksize")):
+                fblksize = format(int(fstatinfo.st_blksize), 'x').lower()
+            fblocks = 0
+            if(hasattr(fstatinfo, "st_blocks")):
+                fblocks = format(int(fstatinfo.st_blocks), 'x').lower()
+            fflags = 0
+            if(hasattr(fstatinfo, "st_flags")):
+                fflags = format(int(fstatinfo.st_flags), 'x').lower()
             ftype = 0
             if(member.is_directory):
                 ftype = 5
@@ -6998,7 +7049,7 @@ else:
                 fcompression = ""
             fcontents.seek(0, 0)
             ftypehex = format(ftype, 'x').lower()
-            tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
+            tmpoutlist = [ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression,
                           fcsize, fuid, funame, fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, "+"+str(len(formatspecs['format_delimiter']))]
             AppendFileHeaderWithContent(
                 fp, tmpoutlist, extradata, jsondata, fcontents.read(), [checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs)
@@ -7041,31 +7092,34 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsond
         fbasedir = os.path.dirname(fname)
         flinkname = curfname[4]
         fsize = format(curfname[5], 'x').lower()
-        fatime = format(curfname[6], 'x').lower()
-        fmtime = format(curfname[7], 'x').lower()
-        fctime = format(curfname[8], 'x').lower()
-        fbtime = format(curfname[9], 'x').lower()
-        fmode = format(curfname[10], 'x').lower()
-        fwinattributes = format(curfname[11], 'x').lower()
-        fcompression = curfname[12]
-        fcsize = format(curfname[13], 'x').lower()
-        fuid = format(curfname[14], 'x').lower()
-        funame = curfname[15]
-        fgid = format(curfname[16], 'x').lower()
-        fgname = curfname[17]
-        fid = format(curfname[18], 'x').lower()
-        finode = format(curfname[19], 'x').lower()
-        flinkcount = format(curfname[20], 'x').lower()
-        fdev = format(curfname[21], 'x').lower()
-        fdev_minor = format(curfname[22], 'x').lower()
-        fdev_major = format(curfname[23], 'x').lower()
-        fseeknextfile = curfname[24]
-        extradata = curfname[25]
-        fheaderchecksumtype = curfname[26]
-        fcontentchecksumtype = curfname[27]
-        fcontents = curfname[28]
+        fblksize = format(curfname[6], 'x').lower()
+        fblocks = format(curfname[7], 'x').lower()
+        fflags = format(curfname[8], 'x').lower()
+        fatime = format(curfname[9], 'x').lower()
+        fmtime = format(curfname[10], 'x').lower()
+        fctime = format(curfname[11], 'x').lower()
+        fbtime = format(curfname[12], 'x').lower()
+        fmode = format(curfname[13], 'x').lower()
+        fwinattributes = format(curfname[14], 'x').lower()
+        fcompression = curfname[15]
+        fcsize = format(curfname[16], 'x').lower()
+        fuid = format(curfname[17], 'x').lower()
+        funame = curfname[18]
+        fgid = format(curfname[19], 'x').lower()
+        fgname = curfname[20]
+        fid = format(curfname[21], 'x').lower()
+        finode = format(curfname[22], 'x').lower()
+        flinkcount = format(curfname[23], 'x').lower()
+        fdev = format(curfname[24], 'x').lower()
+        fdev_minor = format(curfname[25], 'x').lower()
+        fdev_major = format(curfname[26], 'x').lower()
+        fseeknextfile = curfname[27]
+        extradata = curfname[28]
+        fheaderchecksumtype = curfname[29]
+        fcontentchecksumtype = curfname[30]
+        fcontents = curfname[31]
         fencoding = GetFileEncoding(fcontents, 0, False)[0]
-        tmpoutlist = [ftype, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression, fcsize,
+        tmpoutlist = [ftype, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime, fctime, fbtime, fmode, fwinattributes, fcompression, fcsize,
                       fuid, funame, fgid, fgname, fid, finode, flinkcount, fdev, fdev_minor, fdev_major, fseeknextfile]
         fcontents.seek(0, 0)
         AppendFileHeaderWithContent(
@@ -9465,14 +9519,11 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
                         seektoend=False, verbose=False, returnfp=False):
     if(verbose):
         logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
-
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
         fmttype = "auto"
-
     curloc = filestart
-
     if(hasattr(infile, "read") or hasattr(infile, "write")):
         curloc = infile.tell()
         fp = infile
@@ -9488,7 +9539,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         if(not fp):
             return False
         fp.seek(filestart, 0)
-
     elif(infile == "-"):
         fp = MkTempFile()
         shutil.copyfileobj(PY_STDIN_BUF, fp, length=__filebuff_size__)
@@ -9500,7 +9550,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         if(not fp):
             return False
         fp.seek(filestart, 0)
-
     elif(isinstance(infile, bytes) and sys.version_info[0] >= 3):
         fp = MkTempFile()
         fp.write(infile)
@@ -9512,7 +9561,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         if(not fp):
             return False
         fp.seek(filestart, 0)
-
     elif(re.findall(__download_proto_support__, infile)):
         fp = download_file_from_internet_file(infile)
         fp = UncompressFileAlt(fp, formatspecs, filestart)
@@ -9523,7 +9571,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         if(not fp):
             return False
         fp.seek(filestart, 0)
-
     else:
         infile = RemoveWindowsPath(infile)
         checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
@@ -9570,11 +9617,9 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         fp.seek(0, 2)
     except (OSError, ValueError):
         SeekToEndOfFile(fp)
-
     CatSize = fp.tell()
     CatSizeEnd = CatSize
     fp.seek(curloc, 0)
-
     if(IsNestedDict(formatspecs)):
         compresschecking = CheckCompressionType(fp, formatspecs, filestart, False)
         if(compresschecking not in formatspecs):
@@ -9582,22 +9627,18 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         else:
             formatspecs = formatspecs[compresschecking]
             fp.seek(filestart, 0)
-
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelsize = len(formatspecs['format_delimiter'])
     formdel = fp.read(formdelsize).decode("UTF-8")
-
     if(formstring != formatspecs['format_magic'] + inheaderver):
         return False
     if(formdel != formatspecs['format_delimiter']):
         return False
-
     if(formatspecs['new_style']):
         inheader = ReadFileHeaderDataBySize(fp, formatspecs['format_delimiter'])
     else:
         inheader = ReadFileHeaderDataWoSize(fp, formatspecs['format_delimiter'])
-
     fnumextrafieldsize = int(inheader[13], 16)
     fnumextrafields = int(inheader[14], 16)
     extrastart = 15
@@ -9648,14 +9689,11 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         fp.seek(fseeknextasnum, 0)
     else:
         return False
-
     il = 0
     headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs)
-
     valid_archive = True
     invalid_archive = False
-
     if(verbose):
         if(hasattr(infile, "read") or hasattr(infile, "write")):
             try:
@@ -9667,7 +9705,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         else:
             VerbosePrintOut(infile)
         VerbosePrintOut("Number of Records " + str(fnumfiles))
-
     if(headercheck):
         if(verbose):
             VerbosePrintOut("File Header Checksum Passed at offset " + str(0))
@@ -9679,10 +9716,8 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
         if(verbose):
             VerbosePrintOut("File Header Checksum Failed at offset " + str(0))
             VerbosePrintOut("'" + fprechecksum + "' != " + "'" + newfcs + "'")
-
     if(verbose):
         VerbosePrintOut("")
-
     # Iterate either until EOF (seektoend) or fixed count
     while (fp.tell() < CatSizeEnd) if seektoend else (il < fnumfiles):
         outfhstart = fp.tell()
@@ -9693,52 +9728,22 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
 
         if(len(inheaderdata) == 0):
             break
-
-        outfheadsize = int(inheaderdata[0], 16)
-        outfnumfields = int(inheaderdata[1], 16)
-        outftype = int(inheaderdata[2], 16)
-        # FIX: these must come from inheaderdata, not inheader
-        outfostype = inheaderdata[3]
-        outfencoding = inheaderdata[4]
-
         if(re.findall("^[.|/]", inheaderdata[5])):
             outfname = inheaderdata[5]
         else:
             outfname = "./" + inheaderdata[5]
         outfbasedir = os.path.dirname(outfname)
-
-        outflinkname = inheaderdata[6]
         outfsize = int(inheaderdata[7], 16)
-        outfatime = int(inheaderdata[8], 16)
-        outfmtime = int(inheaderdata[9], 16)
-        outfctime = int(inheaderdata[10], 16)
-        outfbtime = int(inheaderdata[11], 16)
-        outfmode = int(inheaderdata[12], 16)
-        outfchmode = stat.S_IMODE(outfmode)
-        outftypemod = stat.S_IFMT(outfmode)
-        outfwinattributes = int(inheaderdata[13], 16)
-        outfcompression = inheaderdata[14]
-        outfcsize = int(inheaderdata[15], 16)
-        outfuid = int(inheaderdata[16], 16)
-        outfuname = inheaderdata[17]
-        outfgid = int(inheaderdata[18], 16)
-        outfgname = inheaderdata[19]
-        fid = int(inheaderdata[20], 16)
-        finode = int(inheaderdata[21], 16)
-        flinkcount = int(inheaderdata[22], 16)
-        outfdev = int(inheaderdata[23], 16)
-        outfdev_minor = int(inheaderdata[24], 16)
-        outfdev_major = int(inheaderdata[25], 16)
-        outfseeknextfile = inheaderdata[26]
-        outfjsontype = inheaderdata[27]
-        outfjsonlen = int(inheaderdata[28], 16)
-        outfjsonsize = int(inheaderdata[29], 16)
-        outfjsonchecksumtype = inheaderdata[30]
-        outfjsonchecksum = inheaderdata[31]
-
+        outfcompression = inheaderdata[17]
+        outfcsize = int(inheaderdata[18], 16)
+        fid = int(inheaderdata[23], 16)
+        finode = int(inheaderdata[24], 16)
+        outfseeknextfile = inheaderdata[29]
+        outfjsonsize = int(inheaderdata[32], 16)
+        outfjsonchecksumtype = inheaderdata[33]
+        outfjsonchecksum = inheaderdata[34]
         outfhend = fp.tell() - 1  # (kept for parity; not used)
         outfjstart = fp.tell()
-
         # Read JSON bytes; compute checksum on bytes for robustness
         outfprejsoncontent_bytes = fp.read(outfjsonsize)
         # Decode for any downstream text needs (not used further here)
@@ -9746,22 +9751,16 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
             outfprejsoncontent = outfprejsoncontent_bytes.decode("UTF-8")
         except Exception:
             outfprejsoncontent = None
-
         outfjend = fp.tell()
         fp.seek(len(formatspecs['format_delimiter']), 1)
-
         injsonfcs = GetFileChecksum(outfprejsoncontent_bytes, outfjsonchecksumtype, True, formatspecs)
-
-        outfextrasize = int(inheaderdata[32], 16)
-        outfextrafields = int(inheaderdata[33], 16)
+        outfextrafields = int(inheaderdata[36], 16)
         extrafieldslist = []
-        extrastart = 34
+        extrastart = 37
         extraend = extrastart + outfextrafields
-
         outfcs = inheaderdata[-2].lower()
         outfccs = inheaderdata[-1].lower()
         infcs = GetHeaderChecksum(inheaderdata[:-2], inheaderdata[-4].lower(), True, formatspecs)
-
         if(verbose):
             VerbosePrintOut(outfname)
             VerbosePrintOut("Record Number " + str(il) + "; File ID " + str(fid) + "; iNode Number " + str(finode))
@@ -9776,7 +9775,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
             if(verbose):
                 VerbosePrintOut("File Header Checksum Failed at offset " + str(outfhstart))
                 VerbosePrintOut("'" + outfcs + "' != " + "'" + infcs + "'")
-
         if(outfjsonsize > 0):
             if(hmac.compare_digest(injsonfcs, outfjsonchecksum)):
                 if(verbose):
@@ -9788,11 +9786,9 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
                 if(verbose):
                     VerbosePrintOut("File JSON Data Checksum Error at offset " + str(outfjstart))
                     VerbosePrintOut("'" + outfjsonchecksum + "' != " + "'" + injsonfcs + "'")
-
         outfcontentstart = fp.tell()
         outfcontents = b""   # FIX: bytes for Py2/3 consistency
         pyhascontents = False
-
         if(outfsize > 0):
             if(outfcompression == "none" or outfcompression == "" or outfcompression == "auto"):
                 outfcontents = fp.read(outfsize)
@@ -9812,10 +9808,8 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
                 if(verbose):
                     VerbosePrintOut("File Content Checksum Failed at offset " + str(outfcontentstart))
                     VerbosePrintOut("'" + outfccs + "' != " + "'" + infccs + "'")
-
         if(verbose):
             VerbosePrintOut("")
-
         # Next seek directive
         if(re.findall(r"^\+([0-9]+)", outfseeknextfile)):
             fseeknextasnum = int(outfseeknextfile.replace("+", ""))
@@ -9834,9 +9828,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0,
             fp.seek(fseeknextasnum, 0)
         else:
             return False
-
         il = il + 1
-
     if(valid_archive):
         if(returnfp):
             return fp
@@ -10289,6 +10281,9 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             # fields (hex-encoded where expected)
             fheadersize = format(int(cur_entry['fheadersize']), 'x').lower()
             fsize       = format(int(cur_entry['fsize']), 'x').lower()
+            fblksize       = format(int(cur_entry['fblksize']), 'x').lower()
+            fblocks       = format(int(cur_entry['fblocks']), 'x').lower()
+            fflags       = format(int(cur_entry['fflags']), 'x').lower()
             flinkname   = cur_entry['flinkname']
             fatime      = format(int(cur_entry['fatime']), 'x').lower()
             fmtime      = format(int(cur_entry['fmtime']), 'x').lower()
@@ -10319,6 +10314,12 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             # extradata/jsondata defaults per file
             if not followlink and len(extradata) <= 0:
                 extradata = cur_entry['fextradata']
+
+            fvendorfields = cur_entry['fvendorfields']
+            ffvendorfieldslist = []
+            if(fvendorfields>0):
+                ffvendorfieldslist = cur_entry['fvendorfieldslist']
+
             if not followlink and len(jsondata) <= 0:
                 jsondata = cur_entry['fjsondata']
 
@@ -10389,6 +10390,9 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                     flinkinfo = listarrayfiles['ffilelist'][flinkid]
                     fheadersize = format(int(flinkinfo['fheadersize']), 'x').lower()
                     fsize       = format(int(flinkinfo['fsize']), 'x').lower()
+                    fblksize       = format(int(flinkinfo['fblksize']), 'x').lower()
+                    fblocks       = format(int(flinkinfo['fblocks']), 'x').lower()
+                    fflags       = format(int(flinkinfo['fflags']), 'x').lower()
                     flinkname   = flinkinfo['flinkname']
                     fatime      = format(int(flinkinfo['fatime']), 'x').lower()
                     fmtime      = format(int(flinkinfo['fmtime']), 'x').lower()
@@ -10415,6 +10419,12 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                         flinkinfo['fextrafields'] = len(flinkinfo['fextradata'])
                     if len(extradata) < 0:
                         extradata = flinkinfo['fextradata']
+
+                    fvendorfields = flinkinfo['fvendorfields']
+                    ffvendorfieldslist = []
+                    if(fvendorfields>0):
+                        ffvendorfieldslist = flinkinfo['fvendorfieldslist']
+
                     if len(jsondata) < 0:
                         jsondata = flinkinfo['fjsondata']
                     fcontents = flinkinfo['fcontents']
@@ -10443,10 +10453,13 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 fcompression = ""
 
             tmpoutlist = [
-                ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fatime, fmtime,
+                ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime,
                 fctime, fbtime, fmode, fwinattributes, fcompression, fcsize, fuid, funame,
                 fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, fseeknextfile
             ]
+
+            if(fvendorfields>0 and len(ffvendorfieldslist)>0):
+                extradata.extend(fvendorfields)
 
             AppendFileHeaderWithContent(
                 fp, tmpoutlist, extradata, jsondata, fcontents.read(),
