@@ -647,7 +647,7 @@ __version_date_info__ = (2025, 11, 6, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id$"
+__revision_id__ = "$Id: 603c45e1d44ecdc3312f7509decf6f5a8b2f63cf $"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -6003,7 +6003,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
         curfid = curfid + 1
         if(ftype == 2):
             flinkname = os.readlink(fname)
-            if(not os.path.exists(flinkname)):
+            if(not os.path.exists(fname)):
                 return False
         try:
             fdev = fstatinfo.st_rdev
@@ -6117,10 +6117,9 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
                         fcompression = curcompression
                         fcontents.close()
                         fcontents = cfcontents
-        elif followlink and (ftype == 1 or ftype == 2):
-            if(not os.path.exists(flinkname)):
+        elif followlink and (ftype == 2 or ftype in data_types):
+            if(not os.path.exists(fname)):
                 return False
-            flstatinfo = os.stat(flinkname)
             with open(flinkname, "rb") as fpc:
                 shutil.copyfileobj(fpc, fcontents, length=__filebuff_size__)
                 typechecktest = CheckCompressionType(fcontents, filestart=0, closefp=False)
