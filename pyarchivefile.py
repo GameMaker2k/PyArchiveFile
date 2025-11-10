@@ -650,7 +650,7 @@ __version_date_info__ = (2025, 11, 6, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id$"
+__revision_id__ = "$Id: 739a621c8fd9c555929ae2f1fc90ad67d86b4f14 $"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -3756,7 +3756,8 @@ def GetHeaderChecksum(inlist=None, checksumtype="md5", encodedata=True, formatsp
     if encodedata and not isinstance(hdr_bytes, (bytes, bytearray, memoryview)):
         hdr_bytes = _to_bytes(hdr_bytes)
     hdr_bytes = bytes(hdr_bytes)
-    saltkey = _to_bytes(saltkey)
+    if(saltkey is not None):
+        saltkey = _to_bytes(saltkey)
     if CheckSumSupport(algo_key, hashlib_guaranteed):
         if(saltkey is None):
             h = hashlib.new(algo_key, hdr_bytes)
@@ -3774,7 +3775,8 @@ def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__
       - Falls back to one-shot for non-file-like inputs.
     """
     algo_key = (checksumtype or "md5").lower()
-    saltkey = _to_bytes(saltkey)
+    if(saltkey is not None):
+        saltkey = _to_bytes(saltkey)
     # file-like streaming
     if hasattr(inbytes, "read"):
         # hashlib
