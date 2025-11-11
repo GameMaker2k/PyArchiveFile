@@ -650,7 +650,7 @@ __version_date_info__ = (2025, 11, 6, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id: 739a621c8fd9c555929ae2f1fc90ad67d86b4f14 $"
+__revision_id__ = "$Id$"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -10244,7 +10244,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             infile = RemoveWindowsPath(infile)
         listarrayfileslist = ArchiveFileToArray(
             infile, "auto", filestart, seekstart, seekend,
-            False, True, True, skipchecksum, formatspecs, seektoend, False
+            False, True, True, skipchecksum, formatspecs, saltkey, seektoend, False
         )
 
     # ---------- Format specs selection ----------
@@ -10377,8 +10377,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             fcompression   = cur_entry['fcompression']
             fcsize         = format(int(cur_entry['fcsize']), 'x').lower()
             fdev           = format(int(cur_entry['fdev']), 'x').lower()
-            fdev_minor     = format(int(cur_entry['fminor']), 'x').lower()
-            fdev_major     = format(int(cur_entry['fmajor']), 'x').lower()
+            frdev           = format(int(cur_entry['frdev']), 'x').lower()
             fseeknextfile  = cur_entry['fseeknextfile']
 
             # extra fields sizing
@@ -10486,8 +10485,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                     fcompression   = flinkinfo['fcompression']
                     fcsize         = format(int(flinkinfo['fcsize']), 'x').lower()
                     fdev           = format(int(flinkinfo['fdev']), 'x').lower()
-                    fdev_minor     = format(int(flinkinfo['fminor']), 'x').lower()
-                    fdev_major     = format(int(flinkinfo['fmajor']), 'x').lower()
+                    frdev           = format(int(flinkinfo['frdev']), 'x').lower()
                     fseeknextfile  = flinkinfo['fseeknextfile']
                     if (len(flinkinfo['fextradata']) > flinkinfo['fextrafields']
                         and len(flinkinfo['fextradata']) > 0):
@@ -10530,7 +10528,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             tmpoutlist = [
                 ftypehex, fencoding, fcencoding, fname, flinkname, fsize, fblksize, fblocks, fflags, fatime, fmtime,
                 fctime, fbtime, fmode, fwinattributes, fcompression, fcsize, fuid, funame,
-                fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, fdev_minor, fdev_major, fseeknextfile
+                fgid, fgname, fcurfid, fcurinode, flinkcount, fdev, frdev, fseeknextfile
             ]
 
             if(fvendorfields>0 and len(ffvendorfieldslist)>0):
