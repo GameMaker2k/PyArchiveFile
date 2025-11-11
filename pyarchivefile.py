@@ -3757,7 +3757,13 @@ def GetHeaderChecksum(inlist=None, checksumtype="md5", encodedata=True, formatsp
         hdr_bytes = _to_bytes(hdr_bytes)
     hdr_bytes = bytes(hdr_bytes)
     saltkeyval = None
-    if(saltkey is not None and os.path.exists(saltkey)):
+    if(hasattr(saltkey, "read")):
+        saltkeyval = skfp.read()
+        if(not isinstance(saltkeyval, bytes) and sys.version_info[0] >= 3):
+            saltkeyval = saltkeyval.encode("UTF-8")
+    elif(isinstance(saltkey, bytes) and sys.version_info[0] >= 3):
+        saltkeyval = saltkey
+    elif(saltkey is not None and os.path.exists(saltkey)):
         with open(saltkey, "rb") as skfp:
             saltkeyval = skfp.read()
     else:
@@ -3782,7 +3788,13 @@ def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__
     """
     algo_key = (checksumtype or "md5").lower()
     saltkeyval = None
-    if(saltkey is not None and os.path.exists(saltkey)):
+    if(hasattr(saltkey, "read")):
+        saltkeyval = skfp.read()
+        if(not isinstance(saltkeyval, bytes) and sys.version_info[0] >= 3):
+            saltkeyval = saltkeyval.encode("UTF-8")
+    elif(isinstance(saltkey, bytes) and sys.version_info[0] >= 3):
+        saltkeyval = saltkey
+    elif(saltkey is not None and os.path.exists(saltkey)):
         with open(saltkey, "rb") as skfp:
             saltkeyval = skfp.read()
     else:
