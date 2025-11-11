@@ -9940,7 +9940,7 @@ def StackedArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=
         try:
             infile.close()
         except AttributeError:
-            pass
+            return False
         return outretval
     
 
@@ -10944,7 +10944,7 @@ def StackedArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0
         try:
             infile.close()
         except AttributeError:
-            pass
+            return False
         return outretval
 
 
