@@ -3757,13 +3757,13 @@ def GetHeaderChecksum(inlist=None, checksumtype="md5", encodedata=True, formatsp
         hdr_bytes = _to_bytes(hdr_bytes)
     hdr_bytes = bytes(hdr_bytes)
     saltkeyval = None
-    if(saltkey is not None and os.path.exists(saltkey
+    if(saltkey is not None and os.path.exists(saltkey)):
         skfp = open(saltkey, "rb")
         saltkeyval = skfp.read()
         skfp.close()
     else:
         saltkey = None
-    if(saltkeyval is None)::
+    if(saltkeyval is None):
         saltkey = None
     if CheckSumSupport(algo_key, hashlib_guaranteed):
         if(saltkey is None or saltkeyval is None):
@@ -3783,13 +3783,13 @@ def GetFileChecksum(inbytes, checksumtype="md5", encodedata=True, formatspecs=__
     """
     algo_key = (checksumtype or "md5").lower()
     saltkeyval = None
-    if(saltkey is not None and os.path.exists(saltkey
+    if(saltkey is not None and os.path.exists(saltkey)):
         skfp = open(saltkey, "rb")
         saltkeyval = skfp.read()
         skfp.close()
     else:
         saltkey = None
-    if(saltkeyval is None)::
+    if(saltkeyval is None):
         saltkey = None
     # file-like streaming
     if hasattr(inbytes, "read"):
@@ -4840,7 +4840,7 @@ def ReadFileDataWithContent(fp, filestart=0, listonly=False, uncompress=True, sk
             fp, formatspecs['format_delimiter'])
     fprechecksumtype = inheader[-2]
     fprechecksum = inheader[-1]
-    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
+    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs, saltkey)
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     if(not headercheck and not skipchecksum):
         VerbosePrintOut(
@@ -5033,7 +5033,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
         return False
     fprechecksumtype = inheader[-2]
     fprechecksum = inheader[-1]
-    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
+    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs, saltkey)
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     if(not headercheck and not skipchecksum):
         VerbosePrintOut(
@@ -5216,7 +5216,7 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
         return False
     fprechecksumtype = inheader[-2]
     fprechecksum = inheader[-1]
-    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
+    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs, saltkey)
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     if(not headercheck and not skipchecksum):
         VerbosePrintOut(
@@ -5833,7 +5833,7 @@ def MakeEmptyFile(outfile, fmttype="auto", compression="auto", compresswholefile
             fp = CompressOpenFile(outfile, compresswholefile, compressionlevel)
         except PermissionError:
             return False
-    AppendFileHeader(fp, 0, "UTF-8", ['hello', 'goodbye'], {}, checksumtype, formatspecs)
+    AppendFileHeader(fp, 0, "UTF-8", ['hello', 'goodbye'], {}, checksumtype, formatspecs, saltkey)
     if(outfile == "-" or outfile is None or hasattr(outfile, "read") or hasattr(outfile, "write")):
         fp = CompressOpenFileAlt(
             fp, compression, compressionlevel, compressionuselist, formatspecs)
@@ -5996,7 +5996,7 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
     inodetoforminode = {}
     numfiles = int(len(GetDirList))
     fnumfiles = format(numfiles, 'x').lower()
-    AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs)
+    AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
     try:
         fp.flush()
         if(hasattr(os, "sync")):
@@ -6337,7 +6337,7 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
     except FileNotFoundError:
         return False
     numfiles = int(len(tarfp.getmembers()))
-    AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs)
+    AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
     try:
         fp.flush()
         if(hasattr(os, "sync")):
@@ -6537,7 +6537,7 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
     if(ziptest):
         VerbosePrintOut("Bad file found!")
     numfiles = int(len(zipfp.infolist()))
-    AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs)
+    AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
     try:
         fp.flush()
         if(hasattr(os, "sync")):
@@ -6744,7 +6744,7 @@ else:
         if(rartest):
             VerbosePrintOut("Bad file found!")
         numfiles = int(len(rarfp.infolist()))
-        AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs)
+        AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
         try:
             fp.flush()
             if(hasattr(os, "sync")):
@@ -6986,7 +6986,7 @@ else:
         if(sztestalt):
             VerbosePrintOut("Bad file found!")
         numfiles = int(len(szpfp.list()))
-        AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs)
+        AppendFileHeader(fp, numfiles, "UTF-8", [], {}, [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
         try:
             fp.flush()
             if(hasattr(os, "sync")):
@@ -7155,7 +7155,7 @@ def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsond
     inodetoforminode = {}
     numfiles = int(len(GetDirList))
     fnumfiles = format(numfiles, 'x').lower()
-    AppendFileHeader(fp, numfiles, "UTF-8", [], [checksumtype[0], checksumtype[1]], formatspecs)
+    AppendFileHeader(fp, numfiles, "UTF-8", [], [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
     for curfname in GetDirList:
         ftype = format(curfname[0], 'x').lower()
         fencoding = curfname[1]
@@ -9757,7 +9757,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
     else:
         return False
     il = 0
-    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs)
+    headercheck = ValidateHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, fprechecksum, formatspecs, saltkey)
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     valid_archive = True
     invalid_archive = False
@@ -10316,7 +10316,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         if lenlist != fnumfiles:
             fnumfiles = lenlist
 
-        AppendFileHeader(fp, fnumfiles, listarrayfiles.get('fencoding', 'utf-8'), listarrayfiles['fextradata'], listarrayfiles['fjsondata'], [checksumtype[0], checksumtype[1]], formatspecs)
+        AppendFileHeader(fp, fnumfiles, listarrayfiles.get('fencoding', 'utf-8'), listarrayfiles['fextradata'], listarrayfiles['fjsondata'], [checksumtype[0], checksumtype[1]], formatspecs, saltkey)
 
         # loop counters
         lcfi = 0
