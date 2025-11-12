@@ -7,7 +7,10 @@
         "usememfd": true,
         "usespoolfile": false,
         "spoolfilesize": 4194304,
-        "filebuffsize": 262144
+        "filebuffsize": 262144,
+        "advancedlist": true,
+        "altinode": false,
+        "newstyle": true
     },
     "ArchiveFile": {
         "len": 11,
@@ -16,10 +19,7 @@
         "name": "ArchiveFile",
         "magic": "ArchiveFile",
         "delimiter": "\u0000",
-        "extension": ".arc",
-        "newstyle": true,
-        "advancedlist": true,
-        "altinode": false
+        "extension": ".arc"
     },
     "NeoFile": {
         "len": 7,
@@ -28,9 +28,6 @@
         "name": "NeoFile",
         "magic": "NeoFile",
         "delimiter": "\u0000",
-        "extension": ".neo",
-        "newstyle": true,
-        "advancedlist": true,
-        "altinode": false
+        "extension": ".neo"
     }
 }
