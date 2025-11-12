@@ -645,7 +645,7 @@ __version_date_info__ = (2025, 11, 6, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id$"
+__revision_id__ = "$Id: 840598337b600f7fe2fb282bf189930cf658e0be $"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -10424,7 +10424,11 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                         fcontents.seek(0, 0)
                         cfcontents.seek(0, 0)
                         cfcontents = CompressOpenFileAlt(
-                            cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs
+                            cfcontents,
+                            compressionuselist[ilmin],
+                            compressionlevel,
+                            compressionuselist,
+                            formatspecs
                         )
                         if cfcontents:
                             cfcontents.seek(0, 2)
@@ -10432,7 +10436,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                             cfcontents.close()
                         else:
                             ilcsize.append(float("inf"))
-                        ilmin += 1
+                        ilmin = ilmin + 1
                     ilcmin = ilcsize.index(min(ilcsize))
                     curcompression = compressionuselist[ilcmin]
 
@@ -10441,15 +10445,23 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
                 shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                 cfcontents.seek(0, 0)
                 cfcontents = CompressOpenFileAlt(
-                    cfcontents, curcompression, compressionlevel, compressionuselist, formatspecs
+                    cfcontents,
+                    curcompression,
+                    compressionlevel,
+                    compressionuselist,
+                    formatspecs
                 )
                 cfcontents.seek(0, 2)
-                cfsize_val = cfcontents.tell()
-                if ucfsize > cfsize_val:
-                    fcsize = format(int(cfsize_val), 'x').lower()
+                cfsize = cfcontents.tell()
+                if ucfsize > cfsize:
+                    fcsize = format(int(cfsize), 'x').lower()
                     fcompression = curcompression
                     fcontents.close()
                     fcontents = cfcontents
+
+            if fcompression == "none":
+                fcompression = ""
+            fcontents.seek(0, 0)
 
             # link following (fixed: use listarrayfiles, not prelistarrayfiles)
             if followlink:
@@ -10528,7 +10540,7 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
 
             if(fvendorfields>0 and len(ffvendorfieldslist)>0):
                 extradata.extend(fvendorfields)
-
+            
             AppendFileHeaderWithContent(fp, tmpoutlist, extradata, jsondata, fcontents.read(),[checksumtype[2], checksumtype[3], checksumtype[4]], formatspecs, saltkey)
             try:
                 fcontents.close()
