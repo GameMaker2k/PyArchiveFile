@@ -9707,6 +9707,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
         return False
     if(formdel != formatspecs['format_delimiter']):
         return False
+    headeroffset = fp.tell()
     if(__use_new_style__):
         inheader = ReadFileHeaderDataBySize(fp, formatspecs['format_delimiter'])
     else:
@@ -9725,24 +9726,9 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
     fjsonsize = int(inheader[10], 16)
     fjsonchecksumtype = inheader[11]
     fjsonchecksum = inheader[12]
+    headerjsonoffset = fp.tell()
     fprejsoncontent = fp.read(fjsonsize)
     jsonfcs = GetFileChecksum(fprejsoncontent, fjsonchecksumtype, True, formatspecs, saltkey)
-    if(fjsonsize > 0):
-        if(CheckChecksums(jsonfcs, fjsonchecksum)):
-            if(verbose):
-                VerbosePrintOut("File JSON Data Checksum Passed at offset " + str(outfjstart))
-                VerbosePrintOut("'" + outfjsonchecksum + "' == " + "'" + injsonfcs + "'")
-        else:
-            valid_archive = False
-            invalid_archive = True
-            if(verbose):
-                VerbosePrintOut("File JSON Data Checksum Error at offset " + str(outfjstart))
-                VerbosePrintOut("'" + outfjsonchecksum + "' != " + "'" + injsonfcs + "'")
-    if(not CheckChecksums(fjsonchecksum, jsonfcs) and not skipchecksum):
-        VerbosePrintOut("File JSON Data Checksum Error with file " +
-                        fname + " at offset " + str(fheaderstart))
-        VerbosePrintOut("'" + fjsonchecksum + "' != " + "'" + jsonfcs + "'")
-        return False
     # Next seek directive
     if(re.findall(r"^\+([0-9]+)", outfseeknextfile)):
         fseeknextasnum = int(outfseeknextfile.replace("+", ""))
@@ -9779,15 +9765,26 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
         VerbosePrintOut("Number of Records " + str(fnumfiles))
     if(headercheck):
         if(verbose):
-            VerbosePrintOut("File Header Checksum Passed at offset " + str(0))
+            VerbosePrintOut("File Header Checksum Passed at offset " + str(headeroffset))
             VerbosePrintOut("'" + fprechecksum + "' == " + "'" + newfcs + "'")
     else:
         # always flip flags, even when not verbose
         valid_archive = False
         invalid_archive = True
         if(verbose):
-            VerbosePrintOut("File Header Checksum Failed at offset " + str(0))
+            VerbosePrintOut("File Header Checksum Failed at offset " + str(headeroffset))
             VerbosePrintOut("'" + fprechecksum + "' != " + "'" + newfcs + "'")
+    if(fjsonsize > 0):
+        if(CheckChecksums(jsonfcs, fjsonchecksum)):
+            if(verbose):
+                VerbosePrintOut("File JSON Data Checksum Passed at offset " + str(headerjsonoffset))
+                VerbosePrintOut("'" + outfjsonchecksum + "' == " + "'" + injsonfcs + "'")
+        else:
+            valid_archive = False
+            invalid_archive = True
+            if(verbose):
+                VerbosePrintOut("File JSON Data Checksum Error at offset " + str(headerjsonoffset))
+                VerbosePrintOut("'" + outfjsonchecksum + "' != " + "'" + injsonfcs + "'")
     if(verbose):
         VerbosePrintOut("")
     # Iterate either until EOF (seektoend) or fixed count
