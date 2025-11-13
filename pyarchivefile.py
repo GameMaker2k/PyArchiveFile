@@ -4848,6 +4848,7 @@ def ReadFileDataWithContent(fp, filestart=0, listonly=False, uncompress=True, sk
     CatSizeEnd = CatSize
     fp.seek(curloc, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
+    headeroffset = fp.tell()
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
     formdel = fp.read(formdelszie).decode("UTF-8")
@@ -4867,7 +4868,7 @@ def ReadFileDataWithContent(fp, filestart=0, listonly=False, uncompress=True, sk
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     if(not headercheck and not skipchecksum):
         VerbosePrintOut(
-            "File Header Checksum Error with file at offset " + str(0))
+            "File Header Checksum Error with file at offset " + str(headeroffset))
         VerbosePrintOut("'" + fprechecksum + "' != " +
                         "'" + newfcs + "'")
         return False
@@ -4919,6 +4920,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
     CatSizeEnd = CatSize
     fp.seek(curloc, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
+    headeroffset = fp.tell()
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
     formdel = fp.read(formdelszie).decode("UTF-8")
@@ -5071,7 +5073,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     if(not headercheck and not skipchecksum):
         VerbosePrintOut(
-            "File Header Checksum Error with file at offset " + str(0))
+            "File Header Checksum Error with file at offset " + str(headeroffset))
         VerbosePrintOut("'" + fprechecksum + "' != " +
                         "'" + newfcs + "'")
         return False
@@ -5181,6 +5183,7 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
     CatSizeEnd = CatSize
     fp.seek(curloc, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
+    headeroffset = fp.tell()
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelszie = len(formatspecs['format_delimiter'])
     formdel = fp.read(formdelszie).decode("UTF-8")
@@ -5254,7 +5257,7 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
     newfcs = GetHeaderChecksum([formstring] + inheader[:-1], fprechecksumtype, True, formatspecs, saltkey)
     if(not headercheck and not skipchecksum):
         VerbosePrintOut(
-            "File Header Checksum Error with file at offset " + str(0))
+            "File Header Checksum Error with file at offset " + str(headeroffset))
         VerbosePrintOut("'" + fprechecksum + "' != " +
                         "'" + newfcs + "'")
         return False
@@ -9726,6 +9729,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
             formatspecs = formatspecs[compresschecking]
             fp.seek(filestart, 0)
     inheaderver = str(int(formatspecs['format_ver'].replace(".", "")))
+    headeroffset = fp.tell()
     formstring = fp.read(formatspecs['format_len'] + len(inheaderver)).decode("UTF-8")
     formdelsize = len(formatspecs['format_delimiter'])
     formdel = fp.read(formdelsize).decode("UTF-8")
@@ -9733,7 +9737,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
         return False
     if(formdel != formatspecs['format_delimiter']):
         return False
-    headeroffset = fp.tell()
     if(__use_new_style__):
         inheader = ReadFileHeaderDataBySize(fp, formatspecs['format_delimiter'])
     else:
