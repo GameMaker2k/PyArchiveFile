@@ -14,7 +14,7 @@
     Copyright 2018-2024 Game Maker 2k - http://intdb.sourceforge.net/
     Copyright 2018-2024 Kazuki Przyborowski - https://github.com/KazukiPrzyborowski
 
-    $FileInfo: pyarchivefile.py - Last Update: 11/6/2025 Ver. 0.25.2 RC 1 - Author: cooldude2k $
+    $FileInfo: pyarchivefile.py - Last Update: 11/12/2025 Ver. 0.26.0 RC 1 - Author: cooldude2k $
 '''
 
 from __future__ import absolute_import, division, print_function, unicode_literals, generators, with_statement, nested_scopes
@@ -622,6 +622,7 @@ elif __use_json_file__ and not os.path.exists(__config_file__):
 if not __use_ini_file__ and not __include_defaults__:
     __include_defaults__ = True
 if __include_defaults__:
+    # Arc / Neo
     add_format(__file_format_multi_dict__, "ArchiveFile", "ArchiveFile", ".arc", "ArchiveFile")
     add_format(__file_format_multi_dict__, "NeoFile",     "NeoFile",     ".neo", "NeoFile")
 
@@ -640,8 +641,8 @@ __project__ = __program_name__
 __program_alt_name__ = __program_name__
 __project_url__ = "https://github.com/GameMaker2k/PyArchiveFile"
 __project_release_url__ = __project_url__+"/releases/latest"
-__version_info__ = (0, 25, 2, "RC 1", 1)
-__version_date_info__ = (2025, 11, 6, "RC 1", 1)
+__version_info__ = (0, 26, 0, "RC 1", 1)
+__version_date_info__ = (2025, 11, 12, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
@@ -656,6 +657,9 @@ if(__version_info__[3] is not None):
         1]) + "." + str(__version_info__[2]) + " " + str(__version_info__[3])
 if(__version_info__[3] is None):
     __version__ = str(__version_info__[0]) + "." + str(__version_info__[1]) + "." + str(__version_info__[2])
+
+_logger = logging.getLogger(__project__)      # library-style logger
+_logger.addHandler(logging.NullHandler())     # don't emit logs unless app configures logging
 
 # From: https://stackoverflow.com/a/28568003
 # By Phaxmohdem
@@ -1026,6 +1030,20 @@ def VerbosePrintOutReturn(dbgtxt, outtype="log", dbgenable=True, dgblevel=20, **
     VerbosePrintOut(dbgtxt, outtype, dbgenable, dgblevel, **kwargs)
     return dbgtxt
 
+def to_ns(timestamp):
+    """
+    Convert a second-resolution timestamp (int or float)
+    into a nanosecond timestamp (int) by zero-padding.
+    Works in Python 2 and Python 3.
+    """
+    try:
+        # Convert incoming timestamp to float so it works for int or float
+        seconds = float(timestamp)
+    except (TypeError, ValueError):
+        raise ValueError("Timestamp must be int or float")
+
+    # Multiply by 1e9 to get nanoseconds, then cast to int
+    return int(seconds * 1000000000)
 
 def _split_posix(name):
     """
@@ -4446,7 +4464,7 @@ def ReadFileHeaderDataWithContentToArray(fp, listonly=False, contentasfile=True,
         extrastart = extrastart + 1
     fvendorfieldslist = []
     fvendorfields = 0;
-    if(len(HeaderOut)>40):
+    if(len(HeaderOut)>extraend):
         extrastart = extraend
         extraend = len(HeaderOut) - 4
         while(extrastart < extraend):
@@ -4853,11 +4871,11 @@ def ReadFileDataWithContent(fp, filestart=0, listonly=False, uncompress=True, sk
         VerbosePrintOut("'" + fprechecksum + "' != " +
                         "'" + newfcs + "'")
         return False
-    fnumfiles = int(inheader[6], 16)
-    outfseeknextfile = inheaderdata[7]
-    fjsonsize = int(inheaderdata[10], 16)
-    fjsonchecksumtype = inheader[11]
-    fjsonchecksum = inheader[12]
+    fnumfiles = int(inheader[8], 16)
+    outfseeknextfile = inheaderdata[9]
+    fjsonsize = int(inheaderdata[12], 16)
+    fjsonchecksumtype = inheader[13]
+    fjsonchecksum = inheader[14]
     fp.read(fjsonsize)
     # Next seek directive
     if(re.findall(r"^\+([0-9]+)", outfseeknextfile)):
@@ -4914,10 +4932,10 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
     else:
         inheader = ReadFileHeaderDataWoSize(
             fp, formatspecs['format_delimiter'])
-    fnumextrafieldsize = int(inheader[13], 16)
-    fnumextrafields = int(inheader[14], 16)
+    fnumextrafieldsize = int(inheader[15], 16)
+    fnumextrafields = int(inheader[16], 16)
     fextrafieldslist = []
-    extrastart = 15
+    extrastart = 17
     extraend = extrastart + fnumextrafields
     while(extrastart < extraend):
         fextrafieldslist.append(inheader[extrastart])
@@ -4931,20 +4949,31 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
                 fextrafieldslist = json.loads(fextrafieldslist[0])
             except (binascii.Error, json.decoder.JSONDecodeError, UnicodeDecodeError):
                 pass
+    fvendorfieldslist = []
+    fvendorfields = 0;
+    if(len(inheader)>extraend):
+        extrastart = extraend
+        extraend = len(inheader) - 2
+        while(extrastart < extraend):
+            fvendorfieldslist.append(HeaderOut[extrastart])
+            extrastart = extrastart + 1
+            fvendorfields = fvendorfields + 1
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
-    fhencoding = inheader[2]
-    fostype = inheader[3]
-    fpythontype = inheader[4]
-    fprojectname = inheader[4]
-    fnumfiles = int(inheader[6], 16)
-    fseeknextfile = inheader[7]
-    fjsontype = inheader[8]
-    fjsonlen = int(inheader[9], 16)
-    fjsonsize = int(inheader[10], 16)
-    fjsonchecksumtype = inheader[11]
-    fjsonchecksum = inheader[12]
+    fheadctime = int(inheader[1], 16)
+    fheadmtime = int(inheader[1], 16)
+    fhencoding = inheader[4]
+    fostype = inheader[5]
+    fpythontype = inheader[6]
+    fprojectname = inheader[7]
+    fnumfiles = int(inheader[8], 16)
+    fseeknextfile = inheader[9]
+    fjsontype = inheader[10]
+    fjsonlen = int(inheader[11], 16)
+    fjsonsize = int(inheader[12], 16)
+    fjsonchecksumtype = inheader[13]
+    fjsonchecksum = inheader[14]
     fjsoncontent = {}
     fjstart = fp.tell()
     if(fjsontype=="json"):
@@ -5048,7 +5077,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
         return False
     formversions = re.search('(.*?)(\\d+)', formstring).groups()
     fcompresstype = ""
-    outlist = {'fnumfiles': fnumfiles, 'ffilestart': filestart, 'fformat': formversions[0], 'fcompression': fcompresstype, 'fencoding': fhencoding, 'fversion': formversions[1], 'fostype': fostype, 'fprojectname': fprojectname, 'fimptype': fpythontype, 'fheadersize': fheadsize, 'fsize': CatSizeEnd, 'fnumfields': fnumfields + 2, 'fformatspecs': formatspecs, 'fseeknextfile': fseeknextfile, 'fchecksumtype': fprechecksumtype, 'fheaderchecksum': fprechecksum, 'fjsonchecksumtype': fjsonchecksumtype, 'fjsontype': fjsontype, 'fjsonlen': fjsonlen, 'fjsonsize': fjsonsize, 'fjsonrawdata': fjsonrawcontent, 'fjsondata': fjsoncontent, 'fjstart': fjstart, 'fjend': fjend, 'fjsonchecksum': fjsonchecksum, 'frawheader': [formstring] + inheader, 'fextrafields': fnumextrafields, 'fextrafieldsize': fnumextrafieldsize, 'fextradata': fextrafieldslist, 'ffilelist': []}
+    outlist = {'fnumfiles': fnumfiles, 'ffilestart': filestart, 'fformat': formversions[0], 'fcompression': fcompresstype, 'fencoding': fhencoding, 'fmtime': fheadmtime, 'fctime': fheadctime, 'fversion': formversions[1], 'fostype': fostype, 'fprojectname': fprojectname, 'fimptype': fpythontype, 'fheadersize': fheadsize, 'fsize': CatSizeEnd, 'fnumfields': fnumfields + 2, 'fformatspecs': formatspecs, 'fseeknextfile': fseeknextfile, 'fchecksumtype': fprechecksumtype, 'fheaderchecksum': fprechecksum, 'fjsonchecksumtype': fjsonchecksumtype, 'fjsontype': fjsontype, 'fjsonlen': fjsonlen, 'fjsonsize': fjsonsize, 'fjsonrawdata': fjsonrawcontent, 'fjsondata': fjsoncontent, 'fjstart': fjstart, 'fjend': fjend, 'fjsonchecksum': fjsonchecksum, 'frawheader': [formstring] + inheader, 'fextrafields': fnumextrafields, 'fextrafieldsize': fnumextrafieldsize, 'fextradata': fextrafieldslist, 'fvendorfields': fvendorfields, 'fvendordata': fvendorfieldslist, 'ffilelist': []}
     if (seekstart < 0) or (seekstart > fnumfiles):
         seekstart = 0
     if (seekend == 0) or (seekend > fnumfiles) or (seekend < seekstart):
@@ -5165,10 +5194,10 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
     else:
         inheader = ReadFileHeaderDataWoSize(
             fp, formatspecs['format_delimiter'])
-    fnumextrafieldsize = int(inheader[13], 16)
-    fnumextrafields = int(inheader[14], 16)
+    fnumextrafieldsize = int(inheader[15], 16)
+    fnumextrafields = int(inheader[16], 16)
     fextrafieldslist = []
-    extrastart = 15
+    extrastart = 17
     extraend = extrastart + fnumextrafields
     while(extrastart < extraend):
         fextrafieldslist.append(inheader[extrastart])
@@ -5185,13 +5214,13 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
-    fnumfiles = int(inheader[6], 16)
-    fseeknextfile = inheaderdata[7]
-    fjsontype = int(inheader[8], 16)
-    fjsonlen = int(inheader[9], 16)
-    fjsonsize = int(inheader[10], 16)
-    fjsonchecksumtype = inheader[11]
-    fjsonchecksum = inheader[12]
+    fnumfiles = int(inheader[8], 16)
+    fseeknextfile = inheaderdata[9]
+    fjsontype = int(inheader[10], 16)
+    fjsonlen = int(inheader[11], 16)
+    fjsonsize = int(inheader[12], 16)
+    fjsonchecksumtype = inheader[13]
+    fjsonchecksum = inheader[14]
     fjsoncontent = {}
     fjstart = fp.tell()
     fprejsoncontent = fp.read(fjsonsize).decode("UTF-8")
@@ -5722,11 +5751,14 @@ def AppendFileHeader(fp, numfiles, fencoding, extradata=[], jsondata={}, checksu
     # Preserve your original "tmpoutlen" computation exactly
     tmpoutlist.append(extrasizelen)
     tmpoutlist.append(extrafields)
-    tmpoutlen = 8 + len(tmpoutlist) + len(xlist)
+    tmpoutlen = 10 + len(tmpoutlist) + len(xlist)
     tmpoutlenhex = _hex_lower(tmpoutlen)
-
+    if(hasattr(time, "time_ns")):
+        fctime = format(int(time.time_ns()), 'x').lower()
+    else:
+        fctime = format(int(to_ns(time.time())), 'x').lower()
     # Serialize the first group
-    fnumfilesa = AppendNullBytes([tmpoutlenhex, fencoding, platform.system(), py_implementation, __program_name__, fnumfiles_hex, "+"+str(len(formatspecs['format_delimiter']))], delimiter)
+    fnumfilesa = AppendNullBytes([tmpoutlenhex, fctime, fctime, fencoding, platform.system(), py_implementation, __program_name__, fnumfiles_hex, "+"+str(len(formatspecs['format_delimiter']))], delimiter)
     # Append tmpoutlist
     fnumfilesa += AppendNullBytes(tmpoutlist, delimiter)
     # Append extradata items if any
@@ -5957,9 +5989,6 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
         return False
     advancedlist = __use_advanced_list__
     altinode = __use_alt_inode__
-    if(verbose):
-        logging.basicConfig(format="%(message)s",
-                            stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     infilelist = []
     if(infiles == "-"):
         for line in PY_STDIN_TEXT:
@@ -6115,13 +6144,28 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
             fsize = format(int(fstatinfo.st_size), 'x').lower()
         else:
             fsize = format(int(fstatinfo.st_size), 'x').lower()
-        fatime = format(int(fstatinfo.st_atime), 'x').lower()
-        fmtime = format(int(fstatinfo.st_mtime), 'x').lower()
-        fctime = format(int(fstatinfo.st_ctime), 'x').lower()
-        if(hasattr(fstatinfo, "st_birthtime")):
-            fbtime = format(int(fstatinfo.st_birthtime), 'x').lower()
+        if(hasattr(fstatinfo, "st_atime_ns")):
+            fatime = format(int(fstatinfo.st_atime_ns), 'x').lower()
         else:
-            fbtime = format(int(fstatinfo.st_ctime), 'x').lower()
+            fatime = format(int(to_ns(fstatinfo.st_atime)), 'x').lower()
+        if(hasattr(fstatinfo, "st_mtime_ns")):
+            fmtime = format(int(fstatinfo.st_mtime_ns), 'x').lower()
+        else:
+            fmtime = format(int(to_ns(fstatinfo.st_mtime)), 'x').lower()
+        if(hasattr(fstatinfo, "st_ctime_ns")):
+            fctime = format(int(fstatinfo.st_ctime_ns), 'x').lower()
+        else:
+            fctime = format(int(to_ns(fstatinfo.st_ctime)), 'x').lower()
+        if(hasattr(fstatinfo, "st_birthtime")):
+            if(hasattr(fstatinfo, "st_birthtime_ns")):
+                fbtime = format(int(fstatinfo.st_birthtime_ns), 'x').lower()
+            else:
+                fbtime = format(int(to_ns(fstatinfo.st_birthtime)), 'x').lower()
+        else:
+            if(hasattr(fstatinfo, "st_ctime_ns")):
+                fbtime = format(int(fstatinfo.st_ctime_ns), 'x').lower()
+            else:
+                fbtime = format(int(to_ns(fstatinfo.st_ctime)), 'x').lower()
         fmode = format(int(fstatinfo.st_mode), 'x').lower()
         fchmode = format(int(stat.S_IMODE(fstatinfo.st_mode)), 'x').lower()
         ftypemod = format(int(stat.S_IFMT(fstatinfo.st_mode)), 'x').lower()
@@ -6276,9 +6320,6 @@ def AppendFilesWithContent(infiles, fp, dirlistfromtxt=False, extradata=[], json
 def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, saltkey=None, verbose=False):
     if(not hasattr(fp, "write")):
         return False
-    if(verbose):
-        logging.basicConfig(format="%(message)s",
-                            stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     curinode = 0
     curfid = 0
     inodelist = []
@@ -6421,10 +6462,10 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
             fsize = format(int(member.size), 'x').lower()
         else:
             fsize = format(int(member.size), 'x').lower()
-        fatime = format(int(member.mtime), 'x').lower()
-        fmtime = format(int(member.mtime), 'x').lower()
-        fctime = format(int(member.mtime), 'x').lower()
-        fbtime = format(int(member.mtime), 'x').lower()
+        fatime = format(int(to_ns(member.mtime)), 'x').lower()
+        fmtime = format(int(to_ns(member.mtime)), 'x').lower()
+        fctime = format(int(to_ns(member.mtime)), 'x').lower()
+        fbtime = format(int(to_ns(member.mtime)), 'x').lower()
         fmode = format(int(ffullmode), 'x').lower()
         fchmode = format(int(stat.S_IMODE(ffullmode)), 'x').lower()
         ftypemod = format(int(stat.S_IFMT(ffullmode)), 'x').lower()
@@ -6506,9 +6547,6 @@ def AppendFilesWithContentFromTarFile(infile, fp, extradata=[], jsondata={}, com
 def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, saltkey=None, verbose=False):
     if(not hasattr(fp, "write")):
         return False
-    if(verbose):
-        logging.basicConfig(format="%(message)s",
-                            stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     curinode = 0
     curfid = 0
     inodelist = []
@@ -6590,13 +6628,13 @@ def AppendFilesWithContentFromZipFile(infile, fp, extradata=[], jsondata={}, com
         else:
             fsize = format(int(member.file_size), 'x').lower()
         fatime = format(
-            int(time.mktime(member.date_time + (0, 0, -1))), 'x').lower()
+            int(to_ns(time.mktime(member.date_time + (0, 0, -1)))), 'x').lower()
         fmtime = format(
-            int(time.mktime(member.date_time + (0, 0, -1))), 'x').lower()
+            int(to_ns(time.mktime(member.date_time + (0, 0, -1)))), 'x').lower()
         fctime = format(
-            int(time.mktime(member.date_time + (0, 0, -1))), 'x').lower()
+            int(to_ns(time.mktime(member.date_time + (0, 0, -1)))), 'x').lower()
         fbtime = format(
-            int(time.mktime(member.date_time + (0, 0, -1))), 'x').lower()
+            int(to_ns(time.mktime(member.date_time + (0, 0, -1)))), 'x').lower()
         if(zipinfo.create_system == 0 or zipinfo.create_system == 10):
             fwinattributes = format(int(zipinfo.external_attr & 0xFFFF), 'x').lower()
             if ((hasattr(member, "is_dir") and member.is_dir()) or member.filename.endswith('/')):
@@ -6731,9 +6769,6 @@ else:
     def AppendFilesWithContentFromRarFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, saltkey=None, verbose=False):
         if(not hasattr(fp, "write")):
             return False
-        if(verbose):
-            logging.basicConfig(format="%(message)s",
-                                stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         curinode = 0
         curfid = 0
         inodelist = []
@@ -6837,20 +6872,20 @@ else:
                 fsize = format(int(member.file_size), 'x').lower()
             try:
                 if(member.atime):
-                    fatime = format(int(member.atime.timestamp()), 'x').lower()
+                    fatime = format(int(to_ns(member.atime.timestamp())), 'x').lower()
                 else:
-                    fatime = format(int(member.mtime.timestamp()), 'x').lower()
+                    fatime = format(int(to_ns(member.mtime.timestamp())), 'x').lower()
             except AttributeError:
-                fatime = format(int(member.mtime.timestamp()), 'x').lower()
-            fmtime = format(int(member.mtime.timestamp()), 'x').lower()
+                fatime = format(int(to_ns(member.mtime.timestamp())), 'x').lower()
+            fmtime = format(int(to_ns(member.mtime.timestamp())), 'x').lower()
             try:
                 if(member.ctime):
-                    fctime = format(int(member.ctime.timestamp()), 'x').lower()
+                    fctime = format(int(to_ns(member.ctime.timestamp())), 'x').lower()
                 else:
-                    fctime = format(int(member.mtime.timestamp()), 'x').lower()
+                    fctime = format(int(to_ns(member.mtime.timestamp())), 'x').lower()
             except AttributeError:
-                fctime = format(int(member.mtime.timestamp()), 'x').lower()
-            fbtime = format(int(member.mtime.timestamp()), 'x').lower()
+                fctime = format(int(to_ns(member.mtime.timestamp())), 'x').lower()
+            fbtime = format(int(to_ns(member.mtime.timestamp())), 'x').lower()
             if(is_unix and member.external_attr != 0):
                 fmode = format(int(member.external_attr), 'x').lower()
                 fchmode = format(
@@ -6971,9 +7006,6 @@ else:
     def AppendFilesWithContentFromSevenZipFile(infile, fp, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, compressionuselist=compressionlistalt, checksumtype=["md5", "md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, saltkey=None, verbose=False):
         if(not hasattr(fp, "write")):
             return False
-        if(verbose):
-            logging.basicConfig(format="%(message)s",
-                                stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         formver = formatspecs['format_ver']
         fileheaderver = str(int(formver.replace(".", "")))
         curinode = 0
@@ -7036,10 +7068,10 @@ else:
             frdev = format(int(0), 'x').lower()
             if(ftype == 5):
                 fsize = format(int("0"), 'x').lower()
-            fatime = format(int(member.creationtime.timestamp()), 'x').lower()
-            fmtime = format(int(member.creationtime.timestamp()), 'x').lower()
-            fctime = format(int(member.creationtime.timestamp()), 'x').lower()
-            fbtime = format(int(member.creationtime.timestamp()), 'x').lower()
+            fatime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
+            fmtime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
+            fctime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
+            fbtime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
             if(member.is_directory):
                 fmode = format(int(stat.S_IFDIR | 0x1ff), 'x').lower()
                 fchmode = format(
@@ -7147,8 +7179,6 @@ else:
 def AppendListsWithContent(inlist, fp, dirlistfromtxt=False, extradata=[], jsondata={}, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, checksumtype=["md5", "md5", "md5", "md5", "md5"], formatspecs=__file_format_dict__, saltkey=None, verbose=False):
     if(not hasattr(fp, "write")):
         return False
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     GetDirList = inlist
     if(not GetDirList):
         return False
@@ -9508,8 +9538,6 @@ def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, 0, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
         return PackArchiveFileFromTarFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, checksumtype, extradata, jsondata, formatspecs, saltkey, verbose, returnfp)
     elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
@@ -9589,8 +9617,6 @@ def ArchiveFileArrayValidate(listarrayfiles, verbose=False):
     return ok
 
 def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, verbose=False, returnfp=False):
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype in formatspecs):
         formatspecs = formatspecs[fmttype]
     elif(IsNestedDict(formatspecs) and fmttype!="auto" and fmttype not in formatspecs):
@@ -9712,20 +9738,20 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
         inheader = ReadFileHeaderDataBySize(fp, formatspecs['format_delimiter'])
     else:
         inheader = ReadFileHeaderDataWoSize(fp, formatspecs['format_delimiter'])
-    fnumextrafieldsize = int(inheader[13], 16)
-    fnumextrafields = int(inheader[14], 16)
-    extrastart = 15
+    fnumextrafieldsize = int(inheader[15], 16)
+    fnumextrafields = int(inheader[16], 16)
+    extrastart = 17
     extraend = extrastart + fnumextrafields
     formversion = re.findall("([\\d]+)", formstring)
     fheadsize = int(inheader[0], 16)
     fnumfields = int(inheader[1], 16)
-    fnumfiles = int(inheader[6], 16)
+    fnumfiles = int(inheader[8], 16)
     fprechecksumtype = inheader[-2]
     fprechecksum = inheader[-1]
-    outfseeknextfile = inheader[7]
-    fjsonsize = int(inheader[10], 16)
-    fjsonchecksumtype = inheader[11]
-    fjsonchecksum = inheader[12]
+    outfseeknextfile = inheader[9]
+    fjsonsize = int(inheader[12], 16)
+    fjsonchecksumtype = inheader[13]
+    fjsonchecksum = inheader[14]
     headerjsonoffset = fp.tell()
     fprejsoncontent = fp.read(fjsonsize)
     jsonfcs = GetFileChecksum(fprejsoncontent, fjsonchecksumtype, True, formatspecs, saltkey)
@@ -10303,9 +10329,6 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
         if (compression is None) or (compressionuselist and compression not in compressionuselist):
             compression = "auto"
 
-        if verbose:
-            logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
-
         # No files?
         if not listarrayfiles.get('ffilelist'):
             return False
@@ -10614,8 +10637,6 @@ def PackArchiveFileFromListDir(infiles, outfile, dirlistfromtxt=False, fmttype="
 def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, saltkey=None, preservepermissions=True, preservetime=True, seektoend=False, verbose=False, returnfp=False):
     if(outdir is not None):
         outdir = RemoveWindowsPath(outdir)
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(isinstance(infile, dict)):
         listarrayfiles = infile
     else:
@@ -10878,8 +10899,6 @@ def ftype_to_str(ftype):
     return mapping.get(ftype, "file")
 
 def ArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, verbose=False, newstyle=False, returnfp=False):
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(isinstance(infile, dict)):
         listarrayfileslist = [infile]
     if(isinstance(infile, list)):
@@ -10924,8 +10943,11 @@ def ArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seeke
                     VerbosePrintOut(ftype_to_str(listarrayfiles['ffilelist'][lcfi]['ftype']) + "\t" + listarrayfiles['ffilelist'][lcfi]['fcompression'] + "\t" + str(
                     listarrayfiles['ffilelist'][lcfi]['fsize']).rjust(15) + "\t" + printfname)
                 else:
+                    ts_ns = listarrayfiles['ffilelist'][lcfi]['fmtime']
+                    sec, ns = divmod(int(ts_ns), 10**9)
+                    dt = datetime.datetime.utcfromtimestamp(sec).replace(microsecond=ns // 1000)
                     VerbosePrintOut(PrintPermissionString(listarrayfiles['ffilelist'][lcfi]['fmode'], listarrayfiles['ffilelist'][lcfi]['ftype']) + " " + str(fuprint) + "/" + str(fgprint) + " " + str(
-                    listarrayfiles['ffilelist'][lcfi]['fsize']).rjust(15) + " " + datetime.datetime.utcfromtimestamp(listarrayfiles['ffilelist'][lcfi]['fmtime']).strftime('%Y-%m-%d %H:%M') + " " + printfname)
+                    listarrayfiles['ffilelist'][lcfi]['fsize']).rjust(15) + " " + dt.strftime('%Y-%m-%d %H:%M') + " " + printfname)
             lcfi = lcfi + 1
     if(returnfp):
         return listarrayfiles['fp']
@@ -10992,8 +11014,6 @@ def ArchiveFileStringListFiles(instr, filestart=0, seekstart=0, seekend=0, skipc
 
 
 def TarFileListFiles(infile, verbose=False, returnfp=False):
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(infile == "-"):
         infile = MkTempFile()
         shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
@@ -11114,8 +11134,6 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
 
 
 def ZipFileListFiles(infile, verbose=False, returnfp=False):
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     if(infile == "-"):
         infile = MkTempFile()
         shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
@@ -11241,8 +11259,6 @@ if(not rarfile_support):
 
 if(rarfile_support):
     def RarFileListFiles(infile, verbose=False, returnfp=False):
-        if(verbose):
-            logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         if(not os.path.exists(infile) or not os.path.isfile(infile)):
             return False
         if(not rarfile.is_rarfile(infile) and not rarfile.is_rarfile_sfx(infile)):
@@ -11370,8 +11386,6 @@ if(not py7zr_support):
 
 if(py7zr_support):
     def SevenZipFileListFiles(infile, verbose=False, returnfp=False):
-        if(verbose):
-            logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
         if(not os.path.exists(infile) or not os.path.isfile(infile)):
             return False
         lcfi = 0
@@ -11465,8 +11479,6 @@ if(py7zr_support):
 
 
 def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict__, seektoend=False, newstyle=False, returnfp=False):
-    if(verbose):
-        logging.basicConfig(format="%(message)s", stream=PY_STDOUT_TEXT, level=logging.DEBUG)
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
