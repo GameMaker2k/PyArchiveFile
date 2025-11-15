@@ -11582,7 +11582,7 @@ def ArchiveFileStringListFiles(instr, filestart=0, seekstart=0, seekend=0, skipc
     return listarrayfiles
 
 
-def TarFileListFiles(infile, verbose=False, returnfp=False):
+def TarFileListFiles(infile, formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
     if(not isinstance(infile, (list, tuple, )) and infile == "-"):
         infile = MkTempFile()
         shutil.copyfileobj(PY_STDIN_BUF, infile, length=__filebuff_size__)
@@ -11696,6 +11696,10 @@ def TarFileListFiles(infile, verbose=False, returnfp=False):
         return listarrayfiles['fp']
     else:
         return True
+
+
+def TarFileListFile(infile, formatspecs=__file_format_multi_dict__, verbose=False, returnfp=False):
+    return TarFileListFiles(infile, formatspecs, verbose, returnfp)
 
 
 def ZipFileListFiles(infile, verbose=False, returnfp=False):
@@ -11816,6 +11820,10 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
         return listarrayfiles['fp']
     else:
         return True
+
+
+def ZipFileListFile(infile, verbose=False, returnfp=False):
+    return ZipFileListFiles(infile, verbose, returnfp)
 
 
 if(not rarfile_support):
@@ -11945,6 +11953,11 @@ if(rarfile_support):
         else:
             return True
 
+
+def RarFileListFile(infile, verbose=False, returnfp=False):
+    return RarFileListFiles(infile, verbose, returnfp)
+
+
 if(not py7zr_support):
     def SevenZipFileListFiles(infile, verbose=False, returnfp=False):
         return False
@@ -12049,12 +12062,16 @@ if(py7zr_support):
             return True
 
 
+def SevenZipFileListFile(infile, verbose=False, returnfp=False):
+    return SevenZipFileListFiles(infile, verbose, returnfp)
+
+
 def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict__, seektoend=False, newstyle=False, returnfp=False):
     checkcompressfile = CheckCompressionSubType(infile, formatspecs, filestart, True)
     if(IsNestedDict(formatspecs) and checkcompressfile in formatspecs):
         formatspecs = formatspecs[checkcompressfile]
     if(checkcompressfile == "tarfile" and TarFileCheck(infile)):
-        return TarFileListFiles(infile, verbose, returnfp)
+        return TarFileListFiles(infile, formatspecs, verbose, returnfp)
     elif(checkcompressfile == "zipfile" and zipfile.is_zipfile(infile)):
         return ZipFileListFiles(infile, verbose, returnfp)
     elif(rarfile_support and checkcompressfile == "rarfile" and (rarfile.is_rarfile(infile) or rarfile.is_rarfile_sfx(infile))):
@@ -12068,6 +12085,10 @@ def InFileListFiles(infile, verbose=False, formatspecs=__file_format_multi_dict_
     return False
 
 
+def InFileListFile(infile, verbose=False, formatspecs=__file_format_multi_dict__, seektoend=False, newstyle=False, returnfp=False):
+    return InFileListFiles(infile, verbose, formatspecs, seektoend, newstyle, returnfp)
+
+
 def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, checksumtype=["md5", "md5", "md5"], formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
     outarray = MkTempFile()
     packform = PackArchiveFile(infiles, outarray, dirlistfromtxt, compression, compresswholefile,
@@ -12075,6 +12096,11 @@ def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compress
     listarrayfiles = ArchiveFileListFiles(
         outarray, seekstart, seekend, skipchecksum, formatspecs, seektoend, verbose, returnfp)
     return listarrayfiles
+
+
+def ListDirListFiles(infiles, dirlistfromtxt=False, compression="auto", compresswholefile=True, compressionlevel=None, followlink=False, seekstart=0, seekend=0, skipchecksum=False, checksumtype=["md5", "md5", "md5"], formatspecs=__file_format_dict__, seektoend=False, verbose=False, returnfp=False):
+    return ListDirListFiles(infiles, dirlistfromtxt, compression, compresswholefile, compressionlevel, followlink, seekstart, seekend, skipchecksum, checksumtype, formatspecs, seektoend, verbose, returnfp)
+
 
 def detect_cwd(ftp, file_dir):
     """
