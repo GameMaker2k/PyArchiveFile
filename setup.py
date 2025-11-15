@@ -79,7 +79,7 @@ pymodule[
 pymodule['platforms'] = 'OS Independent'
 pymodule['zipsafe'] = True
 pymodule['pymodules'] = ['pyarchivefile']
-pymodule['scripts'] = ['archivefile.py', 'neoarchivefile.py', 'archiveneofile.py']
+pymodule['scripts'] = ['archivefile.py']
 pymodule['classifiers'] = [
     'Development Status :: 5 - Production/Stable',
     'Intended Audience :: Developers',
