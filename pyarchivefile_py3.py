@@ -73,6 +73,13 @@ try:
 except ImportError:
     pass
 
+# Optional Bluetooth RFCOMM support: works via stdlib on Linux (AF_BLUETOOTH/BTPROTO_RFCOMM)
+# and via PyBluez if installed.
+try:
+    import bluetooth as _pybluez  # type: ignore
+except Exception:
+    _pybluez = None
+
 import http.cookiejar as cookielib
 from http.cookies import SimpleCookie
 from http.client import HTTPException
