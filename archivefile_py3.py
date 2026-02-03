@@ -18,14 +18,7 @@ import sys
 from io import BytesIO
 from typing import Optional, Dict, Any
 
-# Prefer local Python-3-only builds when present, but fall back to the canonical name.
-try:
-    import pyarchivefile_py3_fixed_v2 as pyarchivefile  # type: ignore
-except ImportError:
-    try:
-        import pyarchivefile_py3_fixed as pyarchivefile  # type: ignore
-    except ImportError:
-        import pyarchivefile  # type: ignore
+import pyarchivefile_py3 as pyarchivefile
 
 # Keep original behavior: log to stdout with simple message format.
 logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
