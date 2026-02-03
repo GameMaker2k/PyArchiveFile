@@ -53,6 +53,7 @@ else:
     print("Date info not found.")
     setuppy_dateinfo_exp = None  # Handle missing date info gracefully
 
+PY2 = (sys.version_info[0] == 2)
 pymodule = {}
 pymodule['version'] = str(setuppy_verinfo_exp[0])+"." + \
     str(setuppy_verinfo_exp[1])+"."+str(setuppy_verinfo_exp[2])
@@ -78,8 +79,12 @@ pymodule[
     'longdescription'] = 'A tar like file format name archivefile.'
 pymodule['platforms'] = 'OS Independent'
 pymodule['zipsafe'] = True
-pymodule['pymodules'] = ['pyarchivefile', 'pyarchivefile_py3']
-pymodule['scripts'] = ['archivefile.py', 'archivefile_py3.py']
+if(PY2):
+    pymodule['pymodules'] = ['pyarchivefile']
+    pymodule['scripts'] = ['archivefile.py']
+else:
+    pymodule['pymodules'] = ['pyarchivefile', 'pyarchivefile_py3']
+    pymodule['scripts'] = ['archivefile.py', 'archivefile_py3.py']
 pymodule['classifiers'] = [
     'Development Status :: 5 - Production/Stable',
     'Intended Audience :: Developers',
