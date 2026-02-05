@@ -338,8 +338,6 @@ haverequests = False
 try:
     import requests
     haverequests = True
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
 except Exception:
     pass
 
@@ -392,6 +390,18 @@ try:
 except Exception:
     pass
 
+NOISY_LOGGERS = (
+    "httpx",
+    "httpcore",
+    "h2",
+    "hpack",
+    "urllib3",
+    "requests",
+)
+
+for name in NOISY_LOGGERS:
+    logging.getLogger(name).setLevel(logging.WARNING)
+    logging.getLogger(name).disabled = True
 
 ftpssl = True
 try:
