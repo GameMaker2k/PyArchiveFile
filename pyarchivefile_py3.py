@@ -9757,7 +9757,6 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
     CatSize = fp.tell()
     CatSizeEnd = CatSize
     fp.seek(0)
-    print(fp.read(128))
     fp.seek(curloc, 0)
     if(IsNestedDict(formatspecs)):
         compresschecking = CheckCompressionType(fp, formatspecs, filestart, False)
