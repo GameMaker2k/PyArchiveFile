@@ -10683,7 +10683,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
         listarrayfilespre = ArchiveFileToArray(infile, "auto", filestart, seekstart, seekend, False, True, True, skipchecksum, formatspecs, saltkey, seektoend, returnfp)
     if(not listarrayfilespre):
         return False
-    if(not isinstance(infile, list)):
+    if(not isinstance(listarrayfilespre, list)):
         listarrayfilespre = [listarrayfilespre]
     fplist = []
     if os.path.exists(outdir) and os.path.isdir(outdir):
@@ -10693,6 +10693,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
     elif not os.path.exists(outdir):
         os.makedirs(outdir)
     for listarrayfiles in listarrayfilespre:
+        print(type(listarrayfiles))
         lenlist = len(listarrayfiles['ffilelist'])
         fnumfiles = int(listarrayfiles['fnumfiles'])
         lcfi = 0
@@ -10919,8 +10920,9 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
             if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 6 and hasattr(os, "mkfifo")):
                 os.mkfifo(PrependPath(
                     outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
+            if(returnfp):
+                fplist.append(listarrayfiles['ffilelist'][lcfi]['fp'])
             lcfi = lcfi + 1
-        fplist.append(listarrayfiles['ffilelist']['fp'])
     if(returnfp):
         return fplist
     else:
