@@ -10693,7 +10693,6 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
     elif not os.path.exists(outdir):
         os.makedirs(outdir)
     for listarrayfiles in listarrayfilespre:
-        print(type(listarrayfiles))
         lenlist = len(listarrayfiles['ffilelist'])
         fnumfiles = int(listarrayfiles['fnumfiles'])
         lcfi = 0
