@@ -660,7 +660,7 @@ __version_date_info__ = (2026, 2, 4, "RC 1", 1)
 __version_date__ = str(__version_date_info__[0]) + "." + str(
     __version_date_info__[1]).zfill(2) + "." + str(__version_date_info__[2]).zfill(2)
 __revision__ = __version_info__[3]
-__revision_id__ = "$Id: a38d387a7c6cdade0f2e931c6223eb024fe8d586 $"
+__revision_id__ = "$Id$"
 if(__version_info__[4] is not None):
     __version_date_plusrc__ = __version_date__ + \
         "-" + str(__version_date_info__[4])
@@ -5412,7 +5412,7 @@ def ReadFileDataWithContentToArray(fp, filestart=0, seekstart=0, seekend=0, list
         extrastart = extraend
         extraend = len(inheader) - 2
         while(extrastart < extraend):
-            fvendorfieldslist.append(HeaderOut[extrastart])
+            fvendorfieldslist.append(inheader[extrastart])
             extrastart = extrastart + 1
             fvendorfields = fvendorfields + 1
     formversion = re.findall("([\\d]+)", formstring)
@@ -5679,7 +5679,7 @@ def ReadFileDataWithContentToList(fp, filestart=0, seekstart=0, seekend=0, listo
         extrastart = extraend
         extraend = len(inheader) - 2
         while(extrastart < extraend):
-            fvendorfieldslist.append(HeaderOut[extrastart])
+            fvendorfieldslist.append(inheader[extrastart])
             extrastart = extrastart + 1
             fvendorfields = fvendorfields + 1
     formversion = re.findall("([\\d]+)", formstring)
