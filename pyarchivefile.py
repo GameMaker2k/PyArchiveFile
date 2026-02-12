@@ -3936,29 +3936,41 @@ def TarFileCheck(infile):
             except Exception:
                 pass
 
-def ZipFileCheck(infile):
+def TarFileCheck(infile):
+    tar = None
+    pos = None
     try:
-        if zipfile.is_zipfile(infile):
-            return True
-    except TypeError:
-        pass
-    try:
-        # Check if the input is a file-like object
         if hasattr(infile, "read"):
-            # Save the current file position
-            current_position = infile.tell()
-            # Attempt to open the file object as a zip file
-            with zipfile.ZipFile(infile) as zipf:
-                pass
-            # Restore the file position
-            infile.seek(current_position)
+            # Only do this if the file object is seekable
+            pos = infile.tell()
+            tar = tarfile.open(fileobj=infile, mode="r")
         else:
-            # Assume it's a filename and attempt to open it as a zip file
-            with zipfile.ZipFile(infile) as zipf:
-                pass
+            tar = tarfile.open(infile, mode="r")
+
+        member = tar.next()
+        if member is None:
+            return False
+
+        if not member.name or "\x00" in member.name:
+            return False
+
+        # if not member.name.isprintable():
+        #     return False
+
         return True
-    except (zipfile.BadZipFile, AttributeError, IOError):
+
+    except (tarfile.TarError, tarfile.ReadError, AttributeError, OSError, IOError):
         return False
+    finally:
+        try:
+            if tar is not None:
+                tar.close()
+        finally:
+            try:
+                if pos is not None and hasattr(infile, "seek"):
+                    infile.seek(pos)
+            except Exception:
+                pass
 
 
 def RarFileCheck(infile):
