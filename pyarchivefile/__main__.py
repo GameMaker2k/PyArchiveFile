@@ -26,7 +26,7 @@ import sys
 from io import BytesIO
 from typing import Optional, Dict, Any
 
-import pyarchivefile_py3 as pyarchivefile
+import pyarchivefile
 
 # Keep original behavior: log to stdout with simple message format.
 logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.DEBUG)
