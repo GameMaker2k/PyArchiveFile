@@ -90,6 +90,10 @@ if os.name == "nt":
     sys.stderr = _wrap(sys.stderr)
 
 hashlib_guaranteed = False
+try:
+    _ALGORITHMS_AVAILABLE = set(hashlib.algorithms_available)
+except AttributeError:
+    _ALGORITHMS_AVAILABLE = set(getattr(hashlib, "algorithms", []))
 # Environment setup
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
@@ -5962,6 +5966,7 @@ def AppendFilesWithContentFromZipFileToList(infile, extradata=[], jsondata={}, c
         fcurfid = format(int(curfid), 'x').lower()
         fcurinode = format(int(curfid), 'x').lower()
         curfid = curfid + 1
+        flinkcount = format(int(flinkcount), 'x').lower()
         fdev = format(int(0), 'x').lower()
         frdev = format(int(0), 'x').lower()
         if(ftype == 5):
@@ -5995,6 +6000,7 @@ def AppendFilesWithContentFromZipFileToList(infile, extradata=[], jsondata={}, c
         elif(zipinfo.create_system == 3):
             fwinattributes = format(int(zipinfo.external_attr & 0xFFFF), 'x').lower()
             fmode = format(int((zipinfo.external_attr >> 16) & 0xFFFF), 'x').lower()
+            mode = int(zipinfo.external_attr >> 16)
             prefmode = int((zipinfo.external_attr >> 16) & 0xFFFF)
             if(prefmode==0):
                 fmode = 0
@@ -6224,6 +6230,7 @@ else:
             fcurfid = format(int(curfid), 'x').lower()
             fcurinode = format(int(curfid), 'x').lower()
             curfid = curfid + 1
+            flinkcount = format(int(flinkcount), 'x').lower()
             fdev = format(int(0), 'x').lower()
             frdev = format(int(0), 'x').lower()
             if(ftype == 5):
@@ -6482,6 +6489,7 @@ else:
             fcurfid = format(int(curfid), 'x').lower()
             fcurinode = format(int(curfid), 'x').lower()
             curfid = curfid + 1
+            flinkcount = format(int(flinkcount), 'x').lower()
             fdev = format(int(0), 'x').lower()
             frdev = format(int(0), 'x').lower()
             if(ftype == 5):
@@ -9081,6 +9089,7 @@ def ZipFileListFiles(infile, verbose=False, returnfp=False):
         elif(zipinfo.create_system == 3):
             fwinattributes = int(zipinfo.external_attr & 0xFFFF)
             fmode = int((zipinfo.external_attr >> 16) & 0xFFFF)
+            mode = int(zipinfo.external_attr >> 16)
             prefmode = int((zipinfo.external_attr >> 16) & 0xFFFF)
             if(prefmode==0):
                 fmode = 0
