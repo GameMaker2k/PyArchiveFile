@@ -410,10 +410,15 @@ def main(argv: Optional[list[str]] = None) -> int:
             else:
                 tmpout = pyarchivefile.InFileListFiles(
                     input_file,
-                    getargs.verbose,
+                    "auto",
+                    0,
+                    0,
+                    0,
+                    False,
+                    fnamedict,
                     fnamedict,
                     getargs.insecretkey,
-                    False,
+                    getargs.verbose,
                     False,
                     False,
                 )
