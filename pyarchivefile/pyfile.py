@@ -7989,7 +7989,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
             infile = RemoveWindowsPath(infile)
         listarrayfileslist = ArchiveFileToArray(
             infile, fmttype, filestart, 0, 0,
-            False, False, True, True, formatspecs, saltkey, seektoend, returnfp
+            False, True, False, True, formatspecs, saltkey, seektoend, returnfp
         )
     for listarrayfiles in listarrayfileslist:
         fp = listarrayfiles['fp']
@@ -8112,6 +8112,7 @@ def ArchiveFileValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_
             pyhascontents = False
             if(outfsize > 0):
                 outfcontents = cur_entry['fcontents']
+                outfcontents.seek(0, 0)
                 infccs = GetFileChecksum(outfcontents, inheaderdata[-3].lower(), False, formatspecs, saltkey)
                 pyhascontents = True
                 if(CheckChecksums(outfccs, infccs)):
