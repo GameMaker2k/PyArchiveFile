@@ -7914,7 +7914,7 @@ def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto
         return False
     return False
 
-def ArchiveFileArrayValidate(infile, verbose=False):
+def ArchiveFileArrayValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, verbose=False, returnfp=False):
     # ---------- Input handling ----------
     if isinstance(infile, dict):
         listarrayfileslist = [infile]
