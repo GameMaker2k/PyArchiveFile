@@ -14,7 +14,7 @@
     Copyright 2018-2026 Game Maker 2k - http://intdb.sourceforge.net/
     Copyright 2018-2026 Kazuki Przyborowski - https://github.com/KazukiPrzyborowski
 
-    $FileInfo: pyfile.py - Last Update: 2/8/2026 Ver. 0.28.8 RC 1 - Author: cooldude2k $
+    $FileInfo: pyarchivefile.py - Last Update: 2/8/2026 Ver. 0.28.8 RC 1 - Author: cooldude2k $
 '''
 
 import io
@@ -9171,7 +9171,7 @@ def ArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seeke
         return True
 
 
-def MultipleArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, returnfp=False):
+def MultipleArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, verbose=False, newstyle=False, returnfp=False):
     if(isinstance(infile, (list, tuple, ))):
         pass
     else:
@@ -9212,14 +9212,14 @@ def StackedArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0
         return outretval
 
 
-def MultipleStackedArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, listonly=False, contentasfile=True, uncompress=True, skipchecksum=False, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, returnfp=False):
+def MultipleStackedArchiveFileListFiles(infile, fmttype="auto", filestart=0, seekstart=0, seekend=0, skipchecksum=False, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, verbose=False, newstyle=False, returnfp=False):
     if(isinstance(infile, (list, tuple, ))):
         pass
     else:
         infile = [infile]
     outretval = {}
     for curfname in infile:
-        outretval[curfname] = StackedArchiveFileListFiles(curfname, fmttype, filestart, seekstart, seekend, listonly, contentasfile, uncompress, skipchecksum, formatspecs, saltkey, seektoend, returnfp)
+        outretval[curfname] = StackedFoxFileListFiles(curfname, fmttype, filestart, seekstart, seekend, skipchecksum, formatspecs, saltkey, seektoend, verbose, newstyle, returnfp)
     return outretval
 
 
