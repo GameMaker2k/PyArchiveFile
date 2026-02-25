@@ -8495,7 +8495,7 @@ def PackArchiveFileFromInFile(infile, outfile, fmttype="auto", compression="auto
     elif(IsSingleDict(formatspecs) and checkcompressfile == formatspecs['format_magic']):
         return RePackArchiveFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, False, 0, 0, checksumtype, False, extradata, jsondata, formatspecs, saltkey, verbose, returnfp)
     else:
-        return False
+        return PackArchiveFileFromBSDTarFile(infile, outfile, fmttype, compression, compresswholefile, compressionlevel, compressionuselist, checksumtype, extradata, jsondata, formatspecs, saltkey, verbose, returnfp)
     return False
 
 def ArchiveFileArrayValidate(infile, fmttype="auto", filestart=0, formatspecs=__file_format_multi_dict__, saltkey=None, seektoend=False, verbose=False, returnfp=False):
