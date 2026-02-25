@@ -6694,7 +6694,7 @@ else:
                 fblocks = format(int(0), 'x').lower()
                 fflags = format(int(0), 'x').lower()
                 ftype = 0
-                if(member.isreg or member.isfile):
+                if((hasattr(member, "isreg") and member.isreg) or member.isfile):
                     ffullmode = member.mode | stat.S_IFREG
                     ftype = 0
                 elif(member.islnk):
@@ -10001,7 +10001,7 @@ else:
                 ffullmode = member.mode
                 flinkcount = 0
                 ftype = 0
-                if(member.isreg or member.isfile):
+                if((hasattr(member, "isreg") and member.isreg) or member.isfile):
                     ffullmode = member.mode | stat.S_IFREG
                     ftype = 0
                 elif(member.islnk):
