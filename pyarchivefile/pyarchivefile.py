@@ -7352,7 +7352,6 @@ else:
             frdev = format(int(0), 'x').lower()
             if(ftype == 5):
                 fsize = format(int(0), 'x').lower()
-            print(member.creationtime_raw)
             fatime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
             fmtime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
             fctime = format(int(to_ns(member.creationtime.timestamp())), 'x').lower()
