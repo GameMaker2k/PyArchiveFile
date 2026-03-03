@@ -769,6 +769,7 @@ if __include_defaults__:
     # Arc / Neo
     add_format(__file_format_multi_dict__, "ArchiveFile", "ArchiveFile", ".arc", "ArchiveFile")
     add_format(__file_format_multi_dict__, "NeoFile", "NeoFile", ".neo", "NeoFile")
+    add_format(__file_format_multi_dict__, "UwUFile", "UwUFile", ".UwU", "UwUFile")
 
 # Pick a default if current default key is not present
 if __file_format_default__ not in __file_format_multi_dict__:
