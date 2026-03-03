@@ -6860,7 +6860,7 @@ else:
             formatspecs = formatspecs[fmttype]
         elif(IsNestedDict(formatspecs) and fmttype not in formatspecs):
             fmttype = __file_format_default__
-        formatspecs = formatspecs[fmttype]
+            formatspecs = formatspecs[fmttype]
         curinode = 0
         curfid = 0
         inodelist = []
