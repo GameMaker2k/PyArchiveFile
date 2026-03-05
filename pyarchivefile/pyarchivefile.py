@@ -9786,7 +9786,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                 if(preservetime):
                     os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
                         listarrayfiles['ffilelist'][lcfi]['fatime'], listarrayfiles['ffilelist'][lcfi]['fmtime']))
-            if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 1):
+            elif(listarrayfiles['ffilelist'][lcfi]['ftype'] == 1):
                 if(followlink):
                     getflinkpath = listarrayfiles['ffilelist'][lcfi]['flinkname']
                     flinkid = prelistarrayfiles['filetoid'][getflinkpath]
@@ -9861,7 +9861,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                 else:
                     os.link(listarrayfiles['ffilelist'][lcfi]['flinkname'], PrependPath(
                         outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
-            if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 2):
+            elif(listarrayfiles['ffilelist'][lcfi]['ftype'] == 2):
                 if(followlink):
                     getflinkpath = listarrayfiles['ffilelist'][lcfi]['flinkname']
                     flinkid = prelistarrayfiles['filetoid'][getflinkpath]
@@ -9936,7 +9936,7 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                 else:
                     os.symlink(listarrayfiles['ffilelist'][lcfi]['flinkname'], PrependPath(
                         outdir, listarrayfiles['ffilelist'][lcfi]['fname']))
-            if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 5):
+            elif(listarrayfiles['ffilelist'][lcfi]['ftype'] == 5):
                 if(preservepermissions):
                     os.mkdir(PrependPath(
                         outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
@@ -9952,12 +9952,16 @@ def UnPackArchiveFile(infile, outdir=None, followlink=False, filestart=0, seekst
                 if(preservetime):
                     os.utime(PrependPath(outdir, listarrayfiles['ffilelist'][lcfi]['fname']), (
                         listarrayfiles['ffilelist'][lcfi]['fatime'], listarrayfiles['ffilelist'][lcfi]['fmtime']))
-            if(listarrayfiles['ffilelist'][lcfi]['ftype'] == 6 and hasattr(os, "mkfifo")):
+            elif(listarrayfiles['ffilelist'][lcfi]['ftype'] == 6 and hasattr(os, "mkfifo")):
                 os.mkfifo(PrependPath(
                     outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'])
-            if(returnfp):
-                fplist.append(listarrayfiles['ffilelist'][lcfi]['fp'])
+            elif((listarrayfiles['ffilelist'][lcfi]['ftype'] == 3 or listarrayfiles['ffilelist'][lcfi]['ftype'] == 4) and hasattr(os, "makedev") and hasattr(os, "mknod")):
+                outdev = os.makedev(listarrayfiles['ffilelist'][lcfi]['frdev_major'], listarrayfiles['ffilelist'][lcfi]['frdev_minor'])
+                os.mknod(PrependPath(
+                    outdir, listarrayfiles['ffilelist'][lcfi]['fname']), listarrayfiles['ffilelist'][lcfi]['fchmode'], outdev)
             lcfi = lcfi + 1
+        if(returnfp):
+            fplist.append(listarrayfiles['fp'])
     if(returnfp):
         return fplist
     else:
