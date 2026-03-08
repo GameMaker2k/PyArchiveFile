@@ -6865,14 +6865,22 @@ def AppendFilesWithContentToList(infiles, fmttype="auto", dirlistfromtxt=False, 
                         ilsize = len(compressionuselist)
                         ilmin = 0
                         ilcsize = []
+                        ilcusagetime = []
+                        ilcscore = []
                         while(ilmin < ilsize):
                             cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                             fcontents.seek(0, 0)
                             cfcontents.seek(0, 0)
+
+                            ilstarttime = time.perf_counter()
                             cfcontents = CompressOpenFileAlt(
                                 cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                            ilendtime = time.perf_counter()
+
+                            ilcusagetime.append(ilendtime - ilstarttime)
+
                             if(cfcontents):
                                 cfcontents.seek(0, 2)
                                 ilcsize.append(cfcontents.tell())
@@ -6880,7 +6888,22 @@ def AppendFilesWithContentToList(infiles, fmttype="auto", dirlistfromtxt=False, 
                             else:
                                 ilcsize.append(float("inf"))
                             ilmin = ilmin + 1
-                        ilcmin = ilcsize.index(min(ilcsize))
+
+                        ilmin = 0
+                        ilmaxtime = max(ilcusagetime)
+                        if(ilmaxtime <= 0):
+                            ilmaxtime = 1.0
+
+                        while(ilmin < ilsize):
+                            if(ilcsize[ilmin] == float("inf")):
+                                ilcscore.append(float("inf"))
+                            else:
+                                ilratio = ilcsize[ilmin] / float(ucfsize)
+                                ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                                ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                            ilmin = ilmin + 1
+
+                        ilcmin = ilcscore.index(min(ilcscore))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
                     cfcontents = MkTempFile()
@@ -6914,14 +6937,22 @@ def AppendFilesWithContentToList(infiles, fmttype="auto", dirlistfromtxt=False, 
                         ilsize = len(compressionuselist)
                         ilmin = 0
                         ilcsize = []
+                        ilcusagetime = []
+                        ilcscore = []
                         while(ilmin < ilsize):
                             cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                             fcontents.seek(0, 0)
                             cfcontents.seek(0, 0)
+
+                            ilstarttime = time.perf_counter()
                             cfcontents = CompressOpenFileAlt(
                                 cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                            ilendtime = time.perf_counter()
+
+                            ilcusagetime.append(ilendtime - ilstarttime)
+
                             if(cfcontents):
                                 cfcontents.seek(0, 2)
                                 ilcsize.append(cfcontents.tell())
@@ -6929,7 +6960,22 @@ def AppendFilesWithContentToList(infiles, fmttype="auto", dirlistfromtxt=False, 
                             else:
                                 ilcsize.append(float("inf"))
                             ilmin = ilmin + 1
-                        ilcmin = ilcsize.index(min(ilcsize))
+
+                        ilmin = 0
+                        ilmaxtime = max(ilcusagetime)
+                        if(ilmaxtime <= 0):
+                            ilmaxtime = 1.0
+
+                        while(ilmin < ilsize):
+                            if(ilcsize[ilmin] == float("inf")):
+                                ilcscore.append(float("inf"))
+                            else:
+                                ilratio = ilcsize[ilmin] / float(ucfsize)
+                                ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                                ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                            ilmin = ilmin + 1
+
+                        ilcmin = ilcscore.index(min(ilcscore))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
                     cfcontents = MkTempFile()
@@ -7158,14 +7204,22 @@ def AppendFilesWithContentFromTarFileToList(infile, fmttype="auto", extradata=[]
                     ilsize = len(compressionuselist)
                     ilmin = 0
                     ilcsize = []
+                    ilcusagetime = []
+                    ilcscore = []
                     while(ilmin < ilsize):
                         cfcontents = MkTempFile()
                         fcontents.seek(0, 0)
                         shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                         fcontents.seek(0, 0)
                         cfcontents.seek(0, 0)
+
+                        ilstarttime = time.perf_counter()
                         cfcontents = CompressOpenFileAlt(
                             cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                        ilendtime = time.perf_counter()
+
+                        ilcusagetime.append(ilendtime - ilstarttime)
+
                         if(cfcontents):
                             cfcontents.seek(0, 2)
                             ilcsize.append(cfcontents.tell())
@@ -7173,7 +7227,22 @@ def AppendFilesWithContentFromTarFileToList(infile, fmttype="auto", extradata=[]
                         else:
                             ilcsize.append(float("inf"))
                         ilmin = ilmin + 1
-                    ilcmin = ilcsize.index(min(ilcsize))
+
+                    ilmin = 0
+                    ilmaxtime = max(ilcusagetime)
+                    if(ilmaxtime <= 0):
+                        ilmaxtime = 1.0
+
+                    while(ilmin < ilsize):
+                        if(ilcsize[ilmin] == float("inf")):
+                            ilcscore.append(float("inf"))
+                        else:
+                            ilratio = ilcsize[ilmin] / float(ucfsize)
+                            ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                            ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                        ilmin = ilmin + 1
+
+                    ilcmin = ilcscore.index(min(ilcscore))
                     curcompression = compressionuselist[ilcmin]
                 fcontents.seek(0, 0)
                 cfcontents = MkTempFile()
@@ -7474,44 +7543,67 @@ else:
                         typechecktest = GetBinaryFileType(fcontents, filestart=0, closefp=False)
                         fcontents.seek(0, 0)
                     fcencoding = GetFileEncoding(fcontents, 0, False)[0]
-                    if(typechecktest is False and not compresswholefile):
-                        fcontents.seek(0, 2)
-                        ucfsize = fcontents.tell()
-                        fcontents.seek(0, 0)
-                        if(compression == "auto"):
-                            ilsize = len(compressionuselist)
-                            ilmin = 0
-                            ilcsize = []
-                            while(ilmin < ilsize):
-                                cfcontents = MkTempFile()
-                                fcontents.seek(0, 0)
-                                shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
-                                fcontents.seek(0, 0)
-                                cfcontents.seek(0, 0)
-                                cfcontents = CompressOpenFileAlt(
-                                    cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
-                                if(cfcontents):
-                                    cfcontents.seek(0, 2)
-                                    ilcsize.append(cfcontents.tell())
-                                    cfcontents.close()
-                                else:
-                                    ilcsize.append(float("inf"))
-                                ilmin = ilmin + 1
-                            ilcmin = ilcsize.index(min(ilcsize))
-                            curcompression = compressionuselist[ilcmin]
-                        fcontents.seek(0, 0)
-                        cfcontents = MkTempFile()
-                        shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
-                        cfcontents.seek(0, 0)
-                        cfcontents = CompressOpenFileAlt(
-                            cfcontents, curcompression, compressionlevel, compressionuselist, formatspecs)
-                        cfcontents.seek(0, 2)
-                        cfsize = cfcontents.tell()
-                        if(ucfsize > cfsize):
-                            fcsize = format(int(cfsize), 'x').lower()
-                            fcompression = curcompression
-                            fcontents.close()
-                            fcontents = cfcontents
+                if(typechecktest is False and not compresswholefile):
+                    fcontents.seek(0, 2)
+                    ucfsize = fcontents.tell()
+                    fcontents.seek(0, 0)
+                    if(compression == "auto"):
+                        ilsize = len(compressionuselist)
+                        ilmin = 0
+                        ilcsize = []
+                        ilcusagetime = []
+                        ilcscore = []
+                        while(ilmin < ilsize):
+                            cfcontents = MkTempFile()
+                            fcontents.seek(0, 0)
+                            shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
+                            fcontents.seek(0, 0)
+                            cfcontents.seek(0, 0)
+
+                            ilstarttime = time.perf_counter()
+                            cfcontents = CompressOpenFileAlt(
+                                cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                            ilendtime = time.perf_counter()
+
+                            ilcusagetime.append(ilendtime - ilstarttime)
+
+                            if(cfcontents):
+                                cfcontents.seek(0, 2)
+                                ilcsize.append(cfcontents.tell())
+                                cfcontents.close()
+                            else:
+                                ilcsize.append(float("inf"))
+                            ilmin = ilmin + 1
+
+                        ilmin = 0
+                        ilmaxtime = max(ilcusagetime)
+                        if(ilmaxtime <= 0):
+                            ilmaxtime = 1.0
+
+                        while(ilmin < ilsize):
+                            if(ilcsize[ilmin] == float("inf")):
+                                ilcscore.append(float("inf"))
+                            else:
+                                ilratio = ilcsize[ilmin] / float(ucfsize)
+                                ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                                ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                            ilmin = ilmin + 1
+
+                        ilcmin = ilcscore.index(min(ilcscore))
+                        curcompression = compressionuselist[ilcmin]
+                    fcontents.seek(0, 0)
+                    cfcontents = MkTempFile()
+                    shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
+                    cfcontents.seek(0, 0)
+                    cfcontents = CompressOpenFileAlt(
+                        cfcontents, curcompression, compressionlevel, compressionuselist, formatspecs)
+                    cfcontents.seek(0, 2)
+                    cfsize = cfcontents.tell()
+                    if(ucfsize > cfsize):
+                        fcsize = format(int(cfsize), 'x').lower()
+                        fcompression = curcompression
+                        fcontents.close()
+                        fcontents = cfcontents
                 if(fcompression == "none"):
                     fcompression = ""
                 fcontents.seek(0, 0)
@@ -7726,19 +7818,45 @@ def AppendFilesWithContentFromZipFileToList(infile, fmttype="auto", extradata=[]
                     ilsize = len(compressionuselist)
                     ilmin = 0
                     ilcsize = []
+                    ilcusagetime = []
+                    ilcscore = []
                     while(ilmin < ilsize):
                         cfcontents = MkTempFile()
                         fcontents.seek(0, 0)
                         shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                         fcontents.seek(0, 0)
                         cfcontents.seek(0, 0)
+
+                        ilstarttime = time.perf_counter()
                         cfcontents = CompressOpenFileAlt(
                             cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
-                        cfcontents.seek(0, 2)
-                        ilcsize.append(cfcontents.tell())
-                        cfcontents.close()
+                        ilendtime = time.perf_counter()
+
+                        ilcusagetime.append(ilendtime - ilstarttime)
+
+                        if(cfcontents):
+                            cfcontents.seek(0, 2)
+                            ilcsize.append(cfcontents.tell())
+                            cfcontents.close()
+                        else:
+                            ilcsize.append(float("inf"))
                         ilmin = ilmin + 1
-                    ilcmin = ilcsize.index(min(ilcsize))
+
+                    ilmin = 0
+                    ilmaxtime = max(ilcusagetime)
+                    if(ilmaxtime <= 0):
+                        ilmaxtime = 1.0
+
+                    while(ilmin < ilsize):
+                        if(ilcsize[ilmin] == float("inf")):
+                            ilcscore.append(float("inf"))
+                        else:
+                            ilratio = ilcsize[ilmin] / float(ucfsize)
+                            ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                            ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                        ilmin = ilmin + 1
+
+                    ilcmin = ilcscore.index(min(ilcscore))
                     curcompression = compressionuselist[ilcmin]
                 fcontents.seek(0, 0)
                 cfcontents = MkTempFile()
@@ -7952,14 +8070,22 @@ else:
                         ilsize = len(compressionuselist)
                         ilmin = 0
                         ilcsize = []
+                        ilcusagetime = []
+                        ilcscore = []
                         while(ilmin < ilsize):
                             cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                             fcontents.seek(0, 0)
                             cfcontents.seek(0, 0)
+
+                            ilstarttime = time.perf_counter()
                             cfcontents = CompressOpenFileAlt(
                                 cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                            ilendtime = time.perf_counter()
+
+                            ilcusagetime.append(ilendtime - ilstarttime)
+
                             if(cfcontents):
                                 cfcontents.seek(0, 2)
                                 ilcsize.append(cfcontents.tell())
@@ -7967,7 +8093,22 @@ else:
                             else:
                                 ilcsize.append(float("inf"))
                             ilmin = ilmin + 1
-                        ilcmin = ilcsize.index(min(ilcsize))
+
+                        ilmin = 0
+                        ilmaxtime = max(ilcusagetime)
+                        if(ilmaxtime <= 0):
+                            ilmaxtime = 1.0
+
+                        while(ilmin < ilsize):
+                            if(ilcsize[ilmin] == float("inf")):
+                                ilcscore.append(float("inf"))
+                            else:
+                                ilratio = ilcsize[ilmin] / float(ucfsize)
+                                ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                                ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                            ilmin = ilmin + 1
+
+                        ilcmin = ilcscore.index(min(ilcscore))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
                     cfcontents = MkTempFile()
@@ -8181,14 +8322,22 @@ else:
                         ilsize = len(compressionuselist)
                         ilmin = 0
                         ilcsize = []
+                        ilcusagetime = []
+                        ilcscore = []
                         while(ilmin < ilsize):
                             cfcontents = MkTempFile()
                             fcontents.seek(0, 0)
                             shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                             fcontents.seek(0, 0)
                             cfcontents.seek(0, 0)
+
+                            ilstarttime = time.perf_counter()
                             cfcontents = CompressOpenFileAlt(
                                 cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                            ilendtime = time.perf_counter()
+
+                            ilcusagetime.append(ilendtime - ilstarttime)
+
                             if(cfcontents):
                                 cfcontents.seek(0, 2)
                                 ilcsize.append(cfcontents.tell())
@@ -8196,7 +8345,22 @@ else:
                             else:
                                 ilcsize.append(float("inf"))
                             ilmin = ilmin + 1
-                        ilcmin = ilcsize.index(min(ilcsize))
+
+                        ilmin = 0
+                        ilmaxtime = max(ilcusagetime)
+                        if(ilmaxtime <= 0):
+                            ilmaxtime = 1.0
+
+                        while(ilmin < ilsize):
+                            if(ilcsize[ilmin] == float("inf")):
+                                ilcscore.append(float("inf"))
+                            else:
+                                ilratio = ilcsize[ilmin] / float(ucfsize)
+                                ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                                ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                            ilmin = ilmin + 1
+
+                        ilcmin = ilcscore.index(min(ilcscore))
                         curcompression = compressionuselist[ilcmin]
                     fcontents.seek(0, 0)
                     cfcontents = MkTempFile()
@@ -9501,52 +9665,63 @@ def RePackArchiveFile(infile, outfile, fmttype="auto", compression="auto", compr
             fcsize = format(int(0), 'x').lower()
             curcompression = "none"
 
-            if typechecktest is False and not compresswholefile:
+            if(typechecktest is False and not compresswholefile):
                 fcontents.seek(0, 2)
                 ucfsize = fcontents.tell()
                 fcontents.seek(0, 0)
-
-                if compression == "auto":
+                if(compression == "auto"):
                     ilsize = len(compressionuselist)
                     ilmin = 0
                     ilcsize = []
-                    while ilmin < ilsize:
+                    ilcusagetime = []
+                    ilcscore = []
+                    while(ilmin < ilsize):
                         cfcontents = MkTempFile()
                         fcontents.seek(0, 0)
                         shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                         fcontents.seek(0, 0)
                         cfcontents.seek(0, 0)
+
+                        ilstarttime = time.perf_counter()
                         cfcontents = CompressOpenFileAlt(
-                            cfcontents,
-                            compressionuselist[ilmin],
-                            compressionlevel,
-                            compressionuselist,
-                            formatspecs
-                        )
-                        if cfcontents:
+                            cfcontents, compressionuselist[ilmin], compressionlevel, compressionuselist, formatspecs)
+                        ilendtime = time.perf_counter()
+
+                        ilcusagetime.append(ilendtime - ilstarttime)
+
+                        if(cfcontents):
                             cfcontents.seek(0, 2)
                             ilcsize.append(cfcontents.tell())
                             cfcontents.close()
                         else:
                             ilcsize.append(float("inf"))
                         ilmin = ilmin + 1
-                    ilcmin = ilcsize.index(min(ilcsize))
-                    curcompression = compressionuselist[ilcmin]
 
+                    ilmin = 0
+                    ilmaxtime = max(ilcusagetime)
+                    if(ilmaxtime <= 0):
+                        ilmaxtime = 1.0
+
+                    while(ilmin < ilsize):
+                        if(ilcsize[ilmin] == float("inf")):
+                            ilcscore.append(float("inf"))
+                        else:
+                            ilratio = ilcsize[ilmin] / float(ucfsize)
+                            ilnormtime = ilcusagetime[ilmin] / ilmaxtime
+                            ilcscore.append((ilratio * 0.7) + (ilnormtime * 0.3))
+                        ilmin = ilmin + 1
+
+                    ilcmin = ilcscore.index(min(ilcscore))
+                    curcompression = compressionuselist[ilcmin]
                 fcontents.seek(0, 0)
                 cfcontents = MkTempFile()
                 shutil.copyfileobj(fcontents, cfcontents, length=__filebuff_size__)
                 cfcontents.seek(0, 0)
                 cfcontents = CompressOpenFileAlt(
-                    cfcontents,
-                    curcompression,
-                    compressionlevel,
-                    compressionuselist,
-                    formatspecs
-                )
+                    cfcontents, curcompression, compressionlevel, compressionuselist, formatspecs)
                 cfcontents.seek(0, 2)
                 cfsize = cfcontents.tell()
-                if ucfsize > cfsize:
+                if(ucfsize > cfsize):
                     fcsize = format(int(cfsize), 'x').lower()
                     fcompression = curcompression
                     fcontents.close()
